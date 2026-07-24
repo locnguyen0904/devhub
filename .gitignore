@@ -1,0 +1,39 @@
+# --- Bí mật: không bao giờ commit ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Go ---
+/backend/bin/
+/backend/tmp/          # air hot-reload
+*.test
+*.out
+coverage.*
+vendor/
+
+# --- Node / frontend ---
+node_modules/
+/frontend/dist/
+/frontend/.vite/
+*.tsbuildinfo
+.pnpm-store/
+npm-debug.log*
+pnpm-debug.log*
+
+# --- Dữ liệu local ---
+/deploy/data/          # volume postgres / redis / minio khi mount ra host
+*.db
+*.sqlite
+
+# --- Editor / OS ---
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+*.swp
+
+# --- Claude Code ---
+.claude/settings.local.json
