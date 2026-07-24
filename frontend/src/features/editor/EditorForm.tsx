@@ -8,6 +8,7 @@ import { apiPatch, apiPost } from "@/shared/api/client";
 import type { Post } from "@/shared/types";
 
 import { TagInput } from "./TagInput";
+import { uploadImage } from "./upload";
 
 const AUTOSAVE_DELAY = 1000;
 
@@ -36,6 +37,13 @@ export function EditorForm({ postId: initialID, initial }: EditorFormProps) {
   const [previewHTML, setPreviewHTML] = useState(initial.bodyHTML);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [publishing, setPublishing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // The CodeMirror view, captured on create, so an uploaded image can be
+  // inserted at the caret.
+  const viewRef = useRef<EditorView | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // postId is held in a ref so the debounced save closure always sees the
   // latest id after a new post's first save, without re-arming the timer.
@@ -101,6 +109,34 @@ export function EditorForm({ postId: initialID, initial }: EditorFormProps) {
     }
   }
 
+  // Insert text at the caret by dispatching a CodeMirror transaction; that fires
+  // onChange, so React state stays in sync.
+  function insertAtCursor(text: string) {
+    const view = viewRef.current;
+    if (!view) return;
+    const pos = view.state.selection.main.head;
+    view.dispatch({
+      changes: { from: pos, insert: text },
+      selection: { anchor: pos + text.length },
+    });
+    view.focus();
+  }
+
+  async function handleFiles(files: FileList | null) {
+    const file = files?.[0];
+    if (!file) return;
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const url = await uploadImage(file);
+      insertAtCursor(`\n![${file.name}](${url})\n`);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
@@ -136,16 +172,52 @@ export function EditorForm({ postId: initialID, initial }: EditorFormProps) {
         <TagInput tags={tags} onChange={setTags} />
       </div>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <CodeMirror
-          value={body}
-          onChange={setBody}
-          extensions={[markdown(), EditorView.lineWrapping]}
-          basicSetup={{ lineNumbers: false, foldGutter: false }}
-          placeholder="Write your post in Markdown…"
-          className="rounded-[--radius-card] border border-border-subtle text-sm"
-          height="60vh"
+      <div className="mt-3 flex items-center gap-3">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          className="hidden"
+          onChange={(e) => {
+            void handleFiles(e.target.files);
+            e.target.value = ""; // allow re-selecting the same file
+          }}
         />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="rounded-[--radius-control] border border-border-strong px-3 py-1 text-sm text-text-muted hover:bg-surface-sunken disabled:opacity-50"
+        >
+          {uploading ? "Uploading…" : "Insert image"}
+        </button>
+        {uploadError && <span className="text-sm text-danger">{uploadError}</span>}
+      </div>
+
+      <div className="mt-2 grid gap-4 md:grid-cols-2">
+        {/* Drop an image anywhere on the editor to upload and insert it. */}
+        <div
+          onDrop={(e) => {
+            e.preventDefault();
+            void handleFiles(e.dataTransfer.files);
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+          }}
+        >
+          <CodeMirror
+            value={body}
+            onChange={setBody}
+            onCreateEditor={(view) => {
+              viewRef.current = view;
+            }}
+            extensions={[markdown(), EditorView.lineWrapping]}
+            basicSetup={{ lineNumbers: false, foldGutter: false }}
+            placeholder="Write your post in Markdown… drop an image to upload it."
+            className="rounded-[--radius-card] border border-border-subtle text-sm"
+            height="60vh"
+          />
+        </div>
         <div className="overflow-y-auto rounded-[--radius-card] border border-border-subtle bg-surface-raised p-5" style={{ height: "60vh" }}>
           {previewHTML ? (
             // Safe: previewHTML is the sanitized body_html the backend returned.

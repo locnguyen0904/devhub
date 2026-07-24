@@ -37,6 +37,9 @@ services:
     environment:
       MINIO_ROOT_USER: devhub
       MINIO_ROOT_PASSWORD: devhub123
+      # Allow the browser to PUT presigned uploads from the frontend origin.
+      # Dev-only; production storage sets its own CORS.
+      MINIO_API_CORS_ALLOW_ORIGIN: "http://localhost:5173,http://localhost:5174"
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -47,6 +50,20 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # One-shot init: create the bucket and make its objects publicly readable so
+  # <img src> works without signing every GET. Runs after MinIO is healthy.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 devhub devhub123 &&
+      mc mb --ignore-existing local/devhub &&
+      mc anonymous set download local/devhub
+      "
 
 volumes:
   postgres-data:

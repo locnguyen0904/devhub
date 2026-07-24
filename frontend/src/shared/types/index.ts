@@ -20,3 +20,4 @@ export type PostList = components["schemas"]["CardListOutputBody"];
 export type CreatePostBody = components["schemas"]["CreateInputBody"];
 export type UpdatePostBody = components["schemas"]["UpdateInputBody"];
 export type TagChip = components["schemas"]["Chip"];
+export type PresignResult = components["schemas"]["PresignOutputBody"];

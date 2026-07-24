@@ -214,6 +214,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/uploads/presign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Get a presigned URL to upload an image directly to storage */
+        post: operations["presignUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -309,6 +326,26 @@ export interface components {
         PageStruct: {
             has_more: boolean;
             next_cursor: string;
+        };
+        PresignInputBody: {
+            /** @example image/png */
+            content_type: string;
+            /**
+             * Format: int64
+             * @example 482913
+             */
+            size_bytes: number;
+        };
+        PresignOutputBody: {
+            /**
+             * Format: int64
+             * @description Seconds the upload URL stays valid
+             */
+            expires_in: number;
+            /** @description Where the image is served once uploaded */
+            public_url: string;
+            /** @description PUT the file here with the same Content-Type */
+            upload_url: string;
         };
         ReadyOutputBody: {
             /** @description Per-dependency probe results */
@@ -843,6 +880,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ListOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    presignUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PresignInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresignOutputBody"];
                 };
             };
             /** @description Error */

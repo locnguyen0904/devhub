@@ -20,7 +20,21 @@ type Config struct {
 	// FrontendURL is where the OAuth callback sends the browser after login.
 	FrontendURL string `env:"FRONTEND_URL" envDefault:"http://localhost:5173"`
 
-	Auth AuthConfig
+	Auth    AuthConfig
+	Storage StorageConfig
+}
+
+// StorageConfig points at the S3-compatible bucket for image uploads. Defaults
+// target the MinIO service in docker-compose; production overrides them.
+type StorageConfig struct {
+	Endpoint  string `env:"S3_ENDPOINT" envDefault:"http://localhost:9000"`
+	Region    string `env:"S3_REGION" envDefault:"us-east-1"`
+	Bucket    string `env:"S3_BUCKET" envDefault:"devhub"`
+	AccessKey string `env:"S3_ACCESS_KEY" envDefault:"devhub"`
+	SecretKey string `env:"S3_SECRET_KEY" envDefault:"devhub123"`
+	// PublicURL is where an uploaded object is served from. For MinIO dev it is
+	// the endpoint plus the bucket; production uses a CDN domain.
+	PublicURL string `env:"S3_PUBLIC_URL" envDefault:"http://localhost:9000/devhub"`
 }
 
 // AuthConfig groups authentication settings.

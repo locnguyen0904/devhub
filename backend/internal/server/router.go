@@ -16,11 +16,13 @@ import (
 	"github.com/locnguyen0904/devhub/backend/internal/modules/health"
 	"github.com/locnguyen0904/devhub/backend/internal/modules/post"
 	"github.com/locnguyen0904/devhub/backend/internal/modules/tag"
+	"github.com/locnguyen0904/devhub/backend/internal/modules/upload"
 	"github.com/locnguyen0904/devhub/backend/internal/modules/user"
 	"github.com/locnguyen0904/devhub/backend/internal/platform/cache"
 	"github.com/locnguyen0904/devhub/backend/internal/platform/database"
 	"github.com/locnguyen0904/devhub/backend/internal/platform/httpx"
 	"github.com/locnguyen0904/devhub/backend/internal/platform/markdown"
+	"github.com/locnguyen0904/devhub/backend/internal/platform/storage"
 )
 
 // requestTimeout bounds ordinary requests. Long-running operations get their
@@ -39,6 +41,14 @@ func NewAPI(cfg config.Config, log *slog.Logger, db *database.DB, redis *cache.C
 	authMod := auth.New(cfg, db, redis, userMod.Service, log)
 	tagMod := tag.New(db)
 	postMod := post.New(db, userMod.Service, tagMod.Service, markdown.NewRenderer())
+	uploadMod := upload.NewModule(storage.New(storage.Config{
+		Endpoint:  cfg.Storage.Endpoint,
+		Region:    cfg.Storage.Region,
+		Bucket:    cfg.Storage.Bucket,
+		AccessKey: cfg.Storage.AccessKey,
+		SecretKey: cfg.Storage.SecretKey,
+		PublicURL: cfg.Storage.PublicURL,
+	}))
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -82,6 +92,7 @@ func NewAPI(cfg config.Config, log *slog.Logger, db *database.DB, redis *cache.C
 	authMod.Register(r, api)
 	tagMod.Register(api)
 	postMod.Register(api)
+	uploadMod.Register(api)
 
 	return r, api
 }
