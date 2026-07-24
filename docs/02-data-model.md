@@ -195,7 +195,8 @@ CREATE TABLE tags (
     id          UUID PRIMARY KEY,
     name        CITEXT NOT NULL UNIQUE CHECK (name ~ '^[a-z0-9][a-z0-9-]{0,29}$'),
     description TEXT,
-    color_hex   TEXT CHECK (color_hex ~ '^#[0-9a-fA-F]{6}$'),
+    color_key   TEXT CHECK (color_key IN
+                ('blue','violet','emerald','amber','rose','cyan','orange','teal')),
     post_count  INT NOT NULL DEFAULT 0,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -214,6 +215,8 @@ CREATE INDEX idx_post_tags_tag ON post_tags(tag_id, post_id);
 Khoá chính `(post_id, tag_id)` phục vụ chiều "lấy tag của một bài". Index phụ `(tag_id, post_id)` phục vụ chiều ngược lại "lấy bài theo tag" — chiều này mới là chiều được dùng ở trang tag.
 
 Giới hạn 4 tag/bài, kiểm tra ở tầng service (giống Dev.to). Tag được tạo tự động khi tác giả gõ tag mới.
+
+**`color_key` lưu khoá sắc, không lưu mã hex.** Giao diện có cả light lẫn dark mode, mà một mã hex đọc được trên nền trắng thì gần như chắc chắn không đọc nổi trên nền `#0F172A`. Mỗi khoá ứng với một *cặp* giá trị light/dark đã kiểm tương phản WCAG AA, định nghĩa ở [06-design-system.md §4](06-design-system.md#4-màu-tag). Tag chưa gán khoá (`NULL`) thì frontend suy ra bằng `hash(name) % 8` — ổn định vì chỉ phụ thuộc tên.
 
 ## 6. Bình luận
 

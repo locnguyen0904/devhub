@@ -82,10 +82,10 @@ devhub/
 │   │       ├── cache/               # redis client + helper
 │   │       ├── storage/             # S3 presigned upload
 │   │       ├── markdown/            # goldmark → HTML sanitize (bluemonday)
-│   │       ├── httpx/               # JSON encode/decode, error → HTTP status
+│   │       ├── httpx/               # lỗi domain → lỗi huma
+│   │       ├── api/                 # dựng huma.API trên chi, cấu hình OpenAPI
 │   │       ├── middleware/          # request id, logger, recover, cors, auth, rate limit
 │   │       ├── token/               # JWT sign/verify
-│   │       ├── validator/           # go-playground/validator
 │   │       └── logger/              # slog có cấu trúc
 │   ├── db/
 │   │   ├── migrations/              # 000001_init.up.sql / .down.sql
@@ -135,18 +135,28 @@ func New(db *database.DB, cache *cache.Client, users UserFinder) *Module {
 	return &Module{handler: newHandler(svc), Service: svc}
 }
 
-func (m *Module) Register(r chi.Router, auth func(http.Handler) http.Handler) {
-	r.Route("/posts", func(r chi.Router) {
-		r.Get("/", m.handler.list)                  // công khai
-		r.Get("/{id}", m.handler.getByID)
-		r.Group(func(r chi.Router) {                // cần đăng nhập
-			r.Use(auth)
-			r.Post("/", m.handler.create)
-			r.Patch("/{id}", m.handler.update)
-			r.Delete("/{id}", m.handler.delete)
-			r.Post("/{id}/publish", m.handler.publish)
-		})
-	})
+// Đăng ký operation vào huma.API — đây là code chạy lúc khởi động,
+// nên OpenAPI spec luôn khớp với những gì server thực sự phục vụ.
+func (m *Module) Register(api huma.API) {
+	huma.Register(api, huma.Operation{
+		OperationID: "listPosts",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/posts",
+		Summary:     "Danh sách bài viết đã xuất bản",
+		Tags:        []string{"posts"},
+	}, m.handler.list)
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "createPost",
+		Method:        http.MethodPost,
+		Path:          "/api/v1/posts",
+		Summary:       "Tạo bài viết mới ở trạng thái nháp",
+		Tags:          []string{"posts"},
+		Security:      []map[string][]string{{"bearer": {}}}, // yêu cầu đăng nhập
+		DefaultStatus: http.StatusCreated,
+	}, m.handler.create)
+
+	// ... update, delete, publish
 }
 ```
 
@@ -175,9 +185,24 @@ func (s *service) Publish(ctx context.Context, actorID, postID uuid.UUID) (*Post
 }
 ```
 
-**`handler.go`** — chỉ dịch HTTP ↔ service. Không `if` nghiệp vụ nào ở đây.
+**`handler.go`** — chỉ dịch HTTP ↔ service. Không `if` nghiệp vụ nào ở đây. Với `huma`, input đã được validate theo schema trước khi hàm chạy, nên handler gọn hơn nữa:
+
+```go
+func (h *Handler) create(ctx context.Context, in *CreatePostInput) (*PostOutput, error) {
+	actor := auth.MustFromContext(ctx)
+	p, err := h.svc.Create(ctx, actor.ID, toCreateParams(in))
+	if err != nil {
+		return nil, httpx.ToHuma(err)   // chuyển lỗi domain → lỗi HTTP, một chỗ duy nhất
+	}
+	return &PostOutput{Body: toDTO(p)}, nil
+}
+```
+
+`huma` **chỉ chạm tới file này**. `service.go` và `repository.go` không import `huma`, nên nếu sau này bỏ nó thì phần phải viết lại đúng bằng một tầng mỏng nhất.
 
 ## 5. Chuỗi middleware
+
+Middleware vẫn là middleware `chi` chuẩn — `huma` gắn lên trên `chi` qua adapter `humachi`, không thay thế nó.
 
 Thứ tự đăng ký (ngoài vào trong):
 
@@ -205,7 +230,7 @@ type Error struct {
 }
 ```
 
-Service trả `*httpx.Error`. Handler gọi `httpx.WriteError(w, err)`. Bảng map code → status nằm gọn một chỗ, không rải `w.WriteHeader(404)` khắp nơi.
+Service trả `*httpx.Error` — thuần domain, không import `huma`. Handler gọi `httpx.ToHuma(err)` để chuyển sang lỗi HTTP. Bảng map code → status nằm gọn một chỗ, không rải `w.WriteHeader(404)` khắp nơi.
 
 ## 7. Xác thực
 

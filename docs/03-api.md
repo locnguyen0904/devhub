@@ -161,7 +161,7 @@ Validate: `title` 1–200 ký tự; `body_markdown` ≤ 200 000 ký tự; tối 
   "cover_image_url": null,
   "status": "published",
   "reading_minutes": 7,
-  "tags": [{ "name": "go", "color_hex": "#00ADD8" }],
+  "tags": [{ "name": "go", "color_key": "cyan" }],
   "author": {
     "id": "01J8...", "username": "locnguyen",
     "display_name": "Loc Nguyen", "avatar_url": "https://..."
@@ -252,6 +252,8 @@ Sliding window trên Redis. Response luôn kèm `X-RateLimit-Limit`, `X-RateLimi
 
 ## 10. Sinh mã tự động
 
-Backend sinh OpenAPI 3.1 spec từ định nghĩa route (`swaggo` hoặc file viết tay tại `docs/openapi.yaml`). Frontend chạy `openapi-typescript` để sinh `shared/types/api.ts`.
+Backend dùng **`huma/v2`** ([05-go-stack.md §3](05-go-stack.md#3-tầng-api-humav2--quyết-định-đã-chốt)): OpenAPI 3.1 sinh ra từ chính struct Go của request/response, phục vụ tại `/openapi.json`. Frontend chạy `openapi-typescript` để sinh `shared/types/api.ts`.
+
+Vì spec sinh từ kiểu dữ liệu chứ không từ comment, nó không thể mô tả sai thứ mà code thực sự nhận và trả về.
 
 Lợi ích thực tế: đổi tên một trường trong response Go làm frontend **lỗi biên dịch** ngay, thay vì lỗi `undefined` lúc chạy. Đây là ràng buộc rẻ nhất giữ hai bên khỏi trôi lệch khi chỉ có một người làm cả hai đầu.

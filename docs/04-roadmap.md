@@ -11,14 +11,16 @@ Nguyên tắc xuyên suốt: mỗi phase kết thúc bằng một thứ **chạy
 Dựng bộ khung để mọi phase sau chỉ việc thêm module.
 
 - `docker-compose.yml`: Postgres 16, Redis 7, MinIO
-- Backend: `cmd/api`, load config từ env (fail-fast nếu thiếu biến), `chi` router, chuỗi middleware, graceful shutdown
-- `platform/`: pgxpool, redis client, slog, `httpx` (JSON + map lỗi)
+- Backend: `cmd/api`, load config từ env (fail-fast nếu thiếu biến), `chi` router + `huma.API` qua `humachi`, chuỗi middleware, graceful shutdown
+- `platform/`: pgxpool, redis client, slog, `httpx` (map lỗi domain → lỗi huma)
+- `/openapi.json` + `/docs` phục vụ được; pipeline `openapi-typescript` sinh `frontend/src/shared/types/api.ts`
 - `golang-migrate` + `sqlc`, chạy migration `000001_init` với schema §3 và §4 của [02-data-model.md](02-data-model.md)
-- Frontend: Vite + React + TS, Tailwind + shadcn, React Router, TanStack Query provider, layout khung
+- Frontend: Vite + React + TS, Tailwind v4 + shadcn, React Router, TanStack Query provider, layout khung
+- Design token theo [06-design-system.md](06-design-system.md): `theme.css` với token ngữ nghĩa, light/dark song song, script chống nháy trắng, `check-contrast.mjs` chạy trong CI
 - `Makefile`: `dev`, `migrate-up/down`, `sqlc`, `lint`, `test`
 - CI (GitHub Actions): `go vet`, `golangci-lint`, `go test`, `tsc --noEmit`, `eslint`
 
-**Xong khi:** `make dev && make api` lên được, `GET /healthz` trả 200, `GET /readyz` báo đúng trạng thái Postgres + Redis, `pnpm dev` render được trang trống có header. CI xanh.
+**Xong khi:** `make dev && make api` lên được, `GET /healthz` trả 200, `GET /readyz` báo đúng trạng thái Postgres + Redis, `/docs` hiển thị OpenAPI, `pnpm dev` render được trang trống có header. CI xanh.
 
 ---
 

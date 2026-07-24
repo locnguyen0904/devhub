@@ -15,6 +15,7 @@ Nguyên tắc chọn thư viện:
 | Vai trò | Thư viện | Version |
 |---|---|---|
 | Router HTTP | `github.com/go-chi/chi/v5` | v5.3.1 |
+| Tầng API + OpenAPI + validate | `github.com/danielgtaylor/huma/v2` | v2.39.0 |
 | Driver Postgres | `github.com/jackc/pgx/v5` | v5.10.0 |
 | Sinh code truy vấn | `github.com/sqlc-dev/sqlc` (CLI) | v1.31.1 |
 | Migration | `github.com/golang-migrate/migrate/v4` | v4.19.1 |
@@ -27,17 +28,17 @@ Nguyên tắc chọn thư viện:
 | Tô màu code | `github.com/alecthomas/chroma/v2` | v2.27.0 |
 | Sanitize HTML | `github.com/microcosm-cc/bluemonday` | v1.0.27 |
 | Sinh slug | `github.com/gosimple/slug` | v1.15.0 |
-| Validate input | `github.com/go-playground/validator/v10` | v10.30.3 |
 | Đọc config | `github.com/caarlos0/env/v11` | v11.4.1 |
 | S3 / MinIO | `github.com/aws/aws-sdk-go-v2/service/s3` | v1.106.0 |
 | Metrics | `github.com/prometheus/client_golang` | v1.24.0 |
+| So sánh trong test | `github.com/google/go-cmp` | v0.7.0 |
 | Assertion test | `github.com/stretchr/testify` | v1.11.1 |
 | DB thật khi test | `github.com/testcontainers/testcontainers-go` | v0.43.0 |
 | Logging | `log/slog` — **thư viện chuẩn** | — |
 | Lint | `golangci-lint` (CLI) | v2.12.2 |
 | Hot reload | `air` (CLI) | v1.67.2 |
 
-Tổng: **17 dependency trực tiếp**. Con số này quan trọng — mỗi dependency là một thứ phải theo dõi CVE và nâng cấp.
+Tổng: **18 dependency trực tiếp**. Con số này quan trọng — mỗi dependency là một thứ phải theo dõi CVE và nâng cấp.
 
 ---
 
@@ -173,7 +174,24 @@ type Config struct {
 
 `required` khiến thiếu biến là **sập lúc khởi động**, không phải `nil pointer` lúc 2 giờ sáng.
 
-### Test: `testify` + `testcontainers-go`
+### Test: `go-cmp` + `testify` + `testcontainers-go`
+
+Phân vai rõ ràng giữa hai thư viện assertion — [Google Go Style Guide](https://google.github.io/styleguide/go/decisions.html#assertion-libraries) khuyên tránh assertion library vì chúng che mất nguồn gốc lỗi, nhưng viết `if err != nil { t.Fatal(err) }` hàng trăm lần cũng là tiếng ồn thật. Chốt cách chia:
+
+- **`cmp.Diff` cho mọi so sánh struct, slice, map.** Nó in ra đúng field nào lệch. `require.Equal` trên struct 15 field chỉ đổ ra hai khối text và bắt người đọc tự dò.
+- **`require.NoError` / `require.Error` cho lỗi**, vì đây là mẫu lặp lại nhiều nhất và không mất thông tin gì.
+- **Không dùng `reflect.DeepEqual`** — nó so sánh cả field không exported và không biết bỏ qua thứ cần bỏ qua.
+
+```go
+got, err := svc.Publish(ctx, author.ID, post.ID)
+require.NoError(t, err)
+
+// Bỏ qua field do DB sinh: so sánh chúng là test đồng hồ, không phải test nghiệp vụ.
+opt := cmpopts.IgnoreFields(Post{}, "UpdatedAt", "PublishedAt")
+if diff := cmp.Diff(want, got, opt); diff != "" {
+	t.Errorf("Publish() mismatch (-want +got):\n%s", diff)
+}
+```
 
 - **Unit test service**: mock repository bằng interface tự viết tay. Repository interface trong mỗi module chỉ 5–8 method, mock tay ~30 dòng và đọc hiểu ngay. Chưa cần `mockery` ở quy mô này.
 - **Integration test repository**: `testcontainers-go` bật một Postgres thật trong Docker, chạy migration, test SQL thật. Sqlite in-memory không thay thế được — nó không có `tsvector`, không có partial index, không có `ON CONFLICT` cùng cú pháp. Test trên thứ khác production là test một hệ thống khác.
@@ -182,19 +200,54 @@ Chạy container một lần cho cả package qua `TestMain`, mỗi test cuộn 
 
 ---
 
-## 3. Sinh OpenAPI: hai hướng, cần bạn chọn
+## 3. Tầng API: `huma/v2` — quyết định đã chốt
 
-[03-api.md §10](03-api.md#10-sinh-mã-tự-động) yêu cầu sinh type TypeScript cho frontend từ spec. Có hai cách, khác nhau đáng kể:
+**Đã chọn `huma/v2` v2.39.0** thay vì `swaggo/swag` (2026-07-24).
 
-**A. `chi` + `swaggo/swag` (v1.16.6)** — viết comment annotation trên mỗi handler, chạy `swag init` sinh spec.
-Được: giữ nguyên `chi`, không đổi gì về kiến trúc.
-Mất: comment và code có thể trôi lệch nhau mà vẫn build thành công. Spec sai âm thầm.
+`huma` không thay `chi`. `chi` vẫn là router bên dưới; `huma` là lớp mô tả operation nằm trên nó, gắn vào qua adapter `humachi`. Middleware `chi` hiện có vẫn dùng nguyên.
 
-**B. `huma/v2` (v2.39.0)** — đăng ký operation bằng struct Go có tag; huma sinh OpenAPI 3.1 **từ chính kiểu dữ liệu**, đồng thời tự validate request theo schema đó. Chạy được trên `chi` làm router bên dưới.
-Được: spec không thể lệch với code, vì nó *là* code. Bớt luôn `validator/v10`.
-Mất: handler viết theo chữ ký của huma (`func(ctx, *Input) (*Output, error)`) — một lớp ràng buộc nữa, và ngược với nguyên tắc "tránh framework" ở trên.
+Cách hoạt động: khai báo operation bằng struct Go có tag, `huma` sinh **OpenAPI 3.1 từ chính kiểu dữ liệu** đó, đồng thời validate request theo cùng schema.
 
-Tôi nghiêng về **B** cho dự án này: bạn làm cả backend lẫn frontend một mình, nên spec trôi lệch là rủi ro thật và sẽ tốn nhiều giờ debug hơn là cái giá của việc bị buộc vào chữ ký handler. Nhưng đây là quyết định của bạn — nó chạm vào mọi handler nên đổi ý ở Phase 3 sẽ đắt.
+```go
+type CreatePostInput struct {
+	Body struct {
+		Title        string   `json:"title"        minLength:"1" maxLength:"200"`
+		Subtitle     string   `json:"subtitle,omitempty" maxLength:"300"`
+		BodyMarkdown string   `json:"body_markdown" minLength:"1" maxLength:"200000"`
+		Tags         []string `json:"tags" maxItems:"4"`
+	}
+}
+
+type PostOutput struct {
+	Body PostDTO
+}
+
+huma.Register(api, huma.Operation{
+	OperationID:   "createPost",
+	Method:        http.MethodPost,
+	Path:          "/api/v1/posts",
+	Summary:       "Tạo bài viết mới ở trạng thái nháp",
+	Tags:          []string{"posts"},
+	Security:      []map[string][]string{{"bearer": {}}},
+	DefaultStatus: http.StatusCreated,
+}, h.createPost)
+
+func (h *Handler) createPost(ctx context.Context, in *CreatePostInput) (*PostOutput, error) {
+	// đến đây input đã validate xong; chỉ còn nghiệp vụ
+}
+```
+
+**Được:**
+- Spec không thể lệch với code, vì nó *là* code. Đây là lý do chính — bạn làm cả hai đầu một mình, TypeScript type sinh sai sẽ tốn hàng giờ debug.
+- Bỏ được `validator/v10` — ràng buộc nằm ngay trên struct và đồng thời xuất hiện trong spec.
+- `OperationID` trở thành tên hàm trong client TypeScript sinh ra, nên đặt tên có ý thức ngay từ đầu.
+
+**Mất — và cách sống chung:**
+- Handler bị buộc vào chữ ký `func(ctx, *Input) (*Output, error)`. Đây là ngoại lệ có chủ đích với nguyên tắc "tránh framework" ở §1: đổi lại là một bất biến mà con người không tự giữ được.
+- Ràng buộc này **chỉ chạm tới `handler.go`** của mỗi module. `service.go` và `repository.go` không biết `huma` tồn tại. Nếu sau này bỏ `huma`, phần phải viết lại đúng bằng một tầng mỏng nhất.
+- `huma` có kiểu lỗi riêng (`huma.Error404NotFound`). `platform/httpx` sẽ có một hàm chuyển `*httpx.Error` → lỗi huma, đặt ở đúng một chỗ, để `service` vẫn trả lỗi domain thuần như thiết kế ở [01-architecture.md §6](01-architecture.md#6-xử-lý-lỗi).
+
+**Hệ quả cần nhớ khi làm Phase 0:** đăng ký operation là code chạy lúc khởi động, không phải comment. Nghĩa là route nào quên đăng ký thì không tồn tại — không có chuyện "spec bảo có mà gọi vào 404" như với `swaggo`.
 
 ---
 
@@ -220,11 +273,12 @@ require (
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.106.0
 	github.com/caarlos0/env/v11 v11.4.1
+	github.com/danielgtaylor/huma/v2 v2.39.0
 	github.com/go-chi/chi/v5 v5.3.1
-	github.com/go-playground/validator/v10 v10.30.3
 	github.com/go-redis/redis_rate/v10 v10.0.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/golang-migrate/migrate/v4 v4.19.1
+	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/gosimple/slug v1.15.0
 	github.com/jackc/pgx/v5 v5.10.0

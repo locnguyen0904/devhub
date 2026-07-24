@@ -38,6 +38,7 @@ MVP bao gồm:
 | [docs/03-api.md](docs/03-api.md) | REST API contract, luồng auth, phân trang, định dạng lỗi |
 | [docs/04-roadmap.md](docs/04-roadmap.md) | Roadmap theo phase, tiêu chí hoàn thành từng phase |
 | [docs/05-go-stack.md](docs/05-go-stack.md) | Thư viện Go: chọn gì, version nào, vì sao không chọn cái kia |
+| [docs/06-design-system.md](docs/06-design-system.md) | Design token, bảng màu, chữ, dark mode, khả năng tiếp cận |
 
 ## Bắt đầu (sau khi có code)
 
