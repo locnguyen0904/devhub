@@ -18,6 +18,8 @@ var htmlTag = regexp.MustCompile(`<[^>]*>`)
 func toFullView(m WithMeta) View {
 	v := baseView(m)
 	v.BodyHTML = m.Post.BodyHTML
+	// The editor needs the source to edit; the feed card deliberately omits it.
+	v.BodyMarkdown = m.Post.BodyMarkdown
 	return v
 }
 

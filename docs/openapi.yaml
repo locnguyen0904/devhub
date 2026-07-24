@@ -13,6 +13,16 @@ components:
         - username
         - display_name
       type: object
+    CardListOutputBody:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/View"
+          type: array
+      required:
+        - data
+      type: object
     CheckDTO:
       additionalProperties: false
       properties:
@@ -167,9 +177,7 @@ components:
         data:
           items:
             $ref: "#/components/schemas/View"
-          type:
-            - array
-            - "null"
+          type: array
         page:
           $ref: "#/components/schemas/PageStruct"
       required:
@@ -182,23 +190,9 @@ components:
         tags:
           items:
             $ref: "#/components/schemas/Chip"
-          type:
-            - array
-            - "null"
+          type: array
       required:
         - tags
-      type: object
-    ListOutputBody1:
-      additionalProperties: false
-      properties:
-        data:
-          items:
-            $ref: "#/components/schemas/View"
-          type:
-            - array
-            - "null"
-      required:
-        - data
       type: object
     LiveOutputBody:
       additionalProperties: false
@@ -336,6 +330,8 @@ components:
           $ref: "#/components/schemas/AuthorView"
         body_html:
           type: string
+        body_markdown:
+          type: string
         cover_image_url:
           type: string
         excerpt:
@@ -358,9 +354,7 @@ components:
         tags:
           items:
             $ref: "#/components/schemas/TagView"
-          type:
-            - array
-            - "null"
+          type: array
         title:
           type: string
         updated_at:
@@ -504,7 +498,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ListOutputBody1"
+                $ref: "#/components/schemas/CardListOutputBody"
           description: OK
         default:
           content:

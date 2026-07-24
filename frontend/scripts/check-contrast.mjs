@@ -87,6 +87,37 @@ for (const [mode, tokens] of Object.entries(modes)) {
   }
 }
 
+// Tag chips declare their own fg/bg vars per class, in both modes. Parse each
+// .tag-<key> (light) and .dark .tag-<key> (dark) and verify the pair.
+const TAG_KEYS = ["blue", "violet", "emerald", "amber", "rose", "cyan", "orange", "teal"];
+
+function tagPair(css, selector) {
+  const block = new RegExp(`${selector}\\s*\\{([^}]*)\\}`).exec(css);
+  if (!block) return null;
+  const fg = /--tag-fg:\s*(#[0-9a-fA-F]{3,8})/.exec(block[1]);
+  const bg = /--tag-bg:\s*(#[0-9a-fA-F]{3,8})/.exec(block[1]);
+  return fg && bg ? { fg: fg[1], bg: bg[1] } : null;
+}
+
+console.log("\ntags");
+for (const key of TAG_KEYS) {
+  for (const [mode, selector] of [
+    ["light", `\\.tag-${key}`],
+    ["dark", `\\.dark \\.tag-${key}`],
+  ]) {
+    const pair = tagPair(css, selector);
+    if (!pair) {
+      console.error(`  MISSING  tag-${key} (${mode})`);
+      failed++;
+      continue;
+    }
+    const ratio = contrast(pair.fg, pair.bg);
+    const ok = ratio >= 4.5;
+    if (!ok) failed++;
+    console.log(`  ${ok ? "pass" : "FAIL"}  ${ratio.toFixed(2).padStart(5)}  (need 4.5)  tag-${key} (${mode})`);
+  }
+}
+
 if (failed > 0) {
   console.error(`\n${failed} colour pair(s) below WCAG AA.`);
   process.exit(1);

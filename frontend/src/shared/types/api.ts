@@ -223,6 +223,9 @@ export interface components {
             display_name: string;
             username: string;
         };
+        CardListOutputBody: {
+            data: components["schemas"]["View"][];
+        };
         CheckDTO: {
             /**
              * @description Dependency name
@@ -286,14 +289,11 @@ export interface components {
             error: components["schemas"]["ErrorBody"];
         };
         FeedOutputBody: {
-            data: components["schemas"]["View"][] | null;
+            data: components["schemas"]["View"][];
             page: components["schemas"]["PageStruct"];
         };
         ListOutputBody: {
-            tags: components["schemas"]["Chip"][] | null;
-        };
-        ListOutputBody1: {
-            data: components["schemas"]["View"][] | null;
+            tags: components["schemas"]["Chip"][];
         };
         LiveOutputBody: {
             /**
@@ -358,6 +358,7 @@ export interface components {
         View: {
             author: components["schemas"]["AuthorView"];
             body_html?: string;
+            body_markdown?: string;
             cover_image_url?: string;
             excerpt?: string;
             id: string;
@@ -368,7 +369,7 @@ export interface components {
             stats: components["schemas"]["StatsView"];
             status: string;
             subtitle?: string;
-            tags: components["schemas"]["TagView"][] | null;
+            tags: components["schemas"]["TagView"][];
             title: string;
             updated_at: string;
             url: string;
@@ -521,7 +522,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ListOutputBody1"];
+                    "application/json": components["schemas"]["CardListOutputBody"];
                 };
             };
             /** @description Error */

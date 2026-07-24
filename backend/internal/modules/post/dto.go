@@ -30,11 +30,12 @@ type View struct {
 	Title          string     `json:"title"`
 	Subtitle       *string    `json:"subtitle,omitempty"`
 	BodyHTML       string     `json:"body_html,omitempty"`
+	BodyMarkdown   string     `json:"body_markdown,omitempty"`
 	Excerpt        string     `json:"excerpt,omitempty"`
 	CoverImageURL  *string    `json:"cover_image_url,omitempty"`
 	Status         string     `json:"status"`
 	ReadingMinutes int        `json:"reading_minutes"`
-	Tags           []TagView  `json:"tags"`
+	Tags           []TagView  `json:"tags" nullable:"false"`
 	Author         AuthorView `json:"author"`
 	Stats          StatsView  `json:"stats"`
 	PublishedAt    *string    `json:"published_at,omitempty"`
@@ -97,7 +98,7 @@ type FeedInput struct {
 // FeedOutput is a page of the feed with its next cursor.
 type FeedOutput struct {
 	Body struct {
-		Data []View `json:"data"`
+		Data []View `json:"data" nullable:"false"`
 		Page struct {
 			NextCursor string `json:"next_cursor"`
 			HasMore    bool   `json:"has_more"`
@@ -113,10 +114,10 @@ type MyPostsInput struct {
 	Limit  int    `query:"limit"`
 }
 
-// ListOutput is a plain list of post cards.
-type ListOutput struct {
+// CardListOutput is a plain list of post cards.
+type CardListOutput struct {
 	Body struct {
-		Data []View `json:"data"`
+		Data []View `json:"data" nullable:"false"`
 	}
 }
 

@@ -31,7 +31,7 @@ type ListInput struct {
 // ListOutput is the tag list body.
 type ListOutput struct {
 	Body struct {
-		Tags []Chip `json:"tags"`
+		Tags []Chip `json:"tags" nullable:"false"`
 	}
 }
 

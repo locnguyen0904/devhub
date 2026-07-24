@@ -148,7 +148,7 @@ func (h *Handler) feed(ctx context.Context, in *FeedInput) (*FeedOutput, error) 
 	return out, nil
 }
 
-func (h *Handler) myPosts(ctx context.Context, in *MyPostsInput) (*ListOutput, error) {
+func (h *Handler) myPosts(ctx context.Context, in *MyPostsInput) (*CardListOutput, error) {
 	actor, err := auth.RequireIdentity(ctx)
 	if err != nil {
 		return nil, httpx.ToHuma(err)
@@ -157,7 +157,7 @@ func (h *Handler) myPosts(ctx context.Context, in *MyPostsInput) (*ListOutput, e
 	if err != nil {
 		return nil, httpx.ToHuma(err)
 	}
-	out := &ListOutput{}
+	out := &CardListOutput{}
 	out.Body.Data = toCardViews(posts)
 	return out, nil
 }

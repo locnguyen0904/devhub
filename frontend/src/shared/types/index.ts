@@ -13,3 +13,10 @@ export type HealthCheck = components["schemas"]["CheckDTO"];
 
 export type Session = components["schemas"]["SessionResponse"];
 export type AuthUser = components["schemas"]["UserView"];
+
+export type Post = components["schemas"]["View"];
+export type PostFeed = components["schemas"]["FeedOutputBody"];
+export type PostList = components["schemas"]["CardListOutputBody"];
+export type CreatePostBody = components["schemas"]["CreateInputBody"];
+export type UpdatePostBody = components["schemas"]["UpdateInputBody"];
+export type TagChip = components["schemas"]["Chip"];

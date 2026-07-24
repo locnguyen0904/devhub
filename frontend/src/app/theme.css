@@ -112,3 +112,100 @@
         }
     }
 }
+
+/* Tag palette — the 8 fixed hues from docs/06-design-system.md §4. Each is a
+   light/dark PAIR: a single hex cannot stay readable on both surfaces. All
+   pairs are checked by scripts/check-contrast.mjs. */
+@layer components {
+  .tag {
+    color: var(--tag-fg);
+    background-color: var(--tag-bg);
+  }
+
+  .tag-blue { --tag-fg: #1d4ed8; --tag-bg: #dbeafe; }
+  .tag-violet { --tag-fg: #6d28d9; --tag-bg: #ede9fe; }
+  .tag-emerald { --tag-fg: #047857; --tag-bg: #d1fae5; }
+  .tag-amber { --tag-fg: #b45309; --tag-bg: #fef3c7; }
+  .tag-rose { --tag-fg: #be123c; --tag-bg: #ffe4e6; }
+  .tag-cyan { --tag-fg: #0e7490; --tag-bg: #cffafe; }
+  .tag-orange { --tag-fg: #c2410c; --tag-bg: #ffedd5; }
+  .tag-teal { --tag-fg: #0f766e; --tag-bg: #ccfbf1; }
+
+  .dark .tag-blue { --tag-fg: #93c5fd; --tag-bg: #172554; }
+  .dark .tag-violet { --tag-fg: #c4b5fd; --tag-bg: #2e1065; }
+  .dark .tag-emerald { --tag-fg: #6ee7b7; --tag-bg: #022c22; }
+  .dark .tag-amber { --tag-fg: #fcd34d; --tag-bg: #451a03; }
+  .dark .tag-rose { --tag-fg: #fda4af; --tag-bg: #4c0519; }
+  .dark .tag-cyan { --tag-fg: #67e8f9; --tag-bg: #083344; }
+  .dark .tag-orange { --tag-fg: #fdba74; --tag-bg: #431407; }
+  .dark .tag-teal { --tag-fg: #5eead4; --tag-bg: #042f2e; }
+}
+
+/* Code highlighting — chroma emits class-based tokens (docs/06-design-system §8).
+   Six groups is enough; more is noise. Comment colour must still meet AA. */
+@layer components {
+  .chroma {
+    color: var(--text-primary);
+  }
+  .chroma .k, .chroma .kd { color: #6d28d9; }
+  .chroma .s, .chroma .s1, .chroma .s2 { color: #047857; }
+  .chroma .c, .chroma .cm, .chroma .c1 { color: #64748b; }
+  .chroma .nf { color: #1d4ed8; }
+  .chroma .m, .chroma .mi { color: #c2410c; }
+
+  .dark .chroma .k, .dark .chroma .kd { color: #c4b5fd; }
+  .dark .chroma .s, .dark .chroma .s1, .dark .chroma .s2 { color: #6ee7b7; }
+  .dark .chroma .c, .dark .chroma .cm, .dark .chroma .c1 { color: #94a3b8; }
+  .dark .chroma .nf { color: #93c5fd; }
+  .dark .chroma .m, .dark .chroma .mi { color: #fdba74; }
+}
+
+@theme {
+  --text-display: 36px;
+}
+
+/* Article typography — the reading column is 18px/1.75 on purpose (§5): this is
+   a site for reading long technical posts, not a dashboard. */
+@layer components {
+  .article {
+    font-size: 18px;
+    line-height: 1.75;
+    color: var(--text-primary);
+  }
+  .article h2 { font-size: 24px; line-height: 1.3; font-weight: 600; margin: 1.6em 0 0.6em; }
+  .article h3 { font-size: 20px; line-height: 1.4; font-weight: 600; margin: 1.4em 0 0.5em; }
+  .article p { margin: 1em 0; }
+  .article a { color: var(--accent); text-decoration: underline; }
+  .article ul, .article ol { margin: 1em 0; padding-left: 1.5em; }
+  .article ul { list-style: disc; }
+  .article ol { list-style: decimal; }
+  .article li { margin: 0.3em 0; }
+  .article blockquote {
+    border-left: 3px solid var(--border-strong);
+    padding-left: 1em;
+    color: var(--text-muted);
+    margin: 1em 0;
+  }
+  .article :not(pre) > code {
+    background-color: var(--surface-sunken);
+    padding: 0.15em 0.35em;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-family: var(--font-mono);
+  }
+  .article pre {
+    background-color: var(--surface-sunken);
+    padding: 1em;
+    border-radius: var(--radius-card);
+    overflow-x: auto;
+    margin: 1.2em 0;
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    line-height: 1.6;
+  }
+  .article img { max-width: 100%; border-radius: var(--radius-card); margin: 1.2em 0; }
+}
+
+@theme {
+  --text-h1: 30px;
+}
