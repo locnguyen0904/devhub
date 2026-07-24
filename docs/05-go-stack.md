@@ -1,6 +1,6 @@
 # 05 — Go Tech Stack
 
-Toolchain: **Go 1.24** (đã có sẵn trên máy). Version trong tài liệu này được truy vấn từ Go module proxy ngày 2026-07-24 — chốt version cụ thể trong `go.mod`, không dùng `latest`.
+Toolchain: **Go 1.26** — `sqlc` v1.31.1 (một `go tool` dependency) yêu cầu Go 1.26, và nó kéo `go` directive của cả module lên 1.26, nên đây là mức tối thiểu cho cả dev lẫn CI. Version thư viện được truy vấn từ Go module proxy ngày 2026-07-24 — chốt cụ thể trong `go.mod`, không dùng `latest`.
 
 Nguyên tắc chọn thư viện:
 
@@ -266,7 +266,7 @@ func (h *Handler) createPost(ctx context.Context, in *CreatePostInput) (*PostOut
 ```go
 module github.com/locnguyen/devhub
 
-go 1.24
+go 1.26
 
 require (
 	github.com/alecthomas/chroma/v2 v2.27.0
@@ -291,7 +291,7 @@ require (
 )
 ```
 
-Công cụ CLI (`sqlc`, `golangci-lint`, `air`, `migrate`) cài qua `go tool` directive của Go 1.24 — version bị ghim trong `go.mod`, cả máy dev lẫn CI dùng đúng một version, không phải cài toàn cục.
+Công cụ CLI (`sqlc`, `golangci-lint`, `air`, `migrate`) cài qua `go tool` directive của Go 1.26 — version bị ghim trong `go.mod`, cả máy dev lẫn CI dùng đúng một version, không phải cài toàn cục.
 
 ---
 

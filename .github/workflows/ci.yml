@@ -11,7 +11,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: "1.24"
+  # sqlc (a go tool dependency) requires Go 1.26, which pulls the module's go
+  # directive up to 1.26, so CI must run at least that.
+  GO_VERSION: "1.26"
   NODE_VERSION: "22"
 
 jobs:

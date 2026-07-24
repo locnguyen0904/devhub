@@ -21,7 +21,7 @@ MVP bao gồm:
 
 | Lớp | Lựa chọn |
 |---|---|
-| Backend | Go 1.24, `chi` router, modular monolith |
+| Backend | Go 1.26, `chi` router, modular monolith |
 | Database | PostgreSQL 16, `pgx/v5` + `sqlc`, `golang-migrate` |
 | Cache / rate limit | Redis 7 |
 | Object storage | S3-compatible (MinIO khi dev) |
@@ -42,7 +42,7 @@ MVP bao gồm:
 
 ## Bắt đầu
 
-Cần: Go 1.24, Node 22 + pnpm, Docker.
+Cần: Go 1.26, Node 22 + pnpm, Docker.
 
 ```bash
 make dev            # postgres, redis, minio — chờ tới khi healthy
