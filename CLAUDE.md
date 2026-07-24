@@ -2,7 +2,10 @@
 
 Quy tắc bắt buộc khi làm việc trên repo này. Đọc [docs/](docs/) để hiểu thiết kế trước khi sửa code.
 
-- Ngôn ngữ: **code và comment viết tiếng Anh**; tài liệu `docs/`, commit message và trao đổi viết tiếng Việt.
+- Ngôn ngữ: **mọi thứ bên trong file code viết tiếng Anh**; chỉ `docs/`, commit message và trao đổi với người dùng viết tiếng Việt.
+  - **Tiếng Anh** — tên định danh, comment, godoc; log message; **chuỗi lỗi trả về client**; **nhãn UI hiển thị cho người dùng cuối**; mô tả API (`Summary`/`Description`/`doc:` của huma) và help text CLI (`make help`). Ranh giới đơn giản: nếu nó nằm trong file `.go`/`.ts`/`.tsx`/`.sql`/`.mjs`/`Makefile`/`.yml`, nó tiếng Anh — không phân biệt ai đọc.
+  - **Tiếng Việt** — nội dung trong `docs/`, commit message, và tin nhắn trao đổi.
+  - Lý do gộp cả text người dùng vào tiếng Anh: tránh ranh giới "chuỗi này ai đọc" vốn mơ hồ và hay cãi nhau. Khi cần đa ngôn ngữ thì thêm một lớp i18n, không rải tiếng Việt trong code.
 - Kiến trúc đã chốt ở `docs/01-architecture.md`. Muốn làm khác thì nêu lý do trước, đừng làm rồi báo sau.
 
 ---

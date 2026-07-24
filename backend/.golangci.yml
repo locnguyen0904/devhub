@@ -1,0 +1,62 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard
+  enable:
+    # Mechanical enforcement of CLAUDE.md §3. Rules a linter can check belong
+    # here, not in CLAUDE.md — two sources of truth would drift.
+    - bodyclose
+    - contextcheck
+    - copyloopvar
+    - errorlint # errors.Is/As instead of == and type switches
+    - forcetypeassert # comma-ok on every type assertion
+    - gochecknoglobals
+    - gochecknoinits # no init(), wire explicitly in main
+    - goconst
+    - gocritic
+    - err113 # no dynamic errors.New at call sites
+    - misspell
+    - nakedret
+    - nilerr
+    - noctx
+    - nolintlint
+    - perfsprint
+    - predeclared
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - staticcheck
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - wastedassign
+    - whitespace
+
+  settings:
+    revive:
+      rules:
+        - name: exported # godoc on every exported identifier
+        - name: context-as-argument # ctx is the first parameter
+        - name: error-strings # lowercase, no trailing punctuation
+        - name: early-return
+        - name: var-naming # postID not postId, httpClient not HttpClient
+        - name: indent-error-flow
+    staticcheck:
+      checks: ["all"]
+
+  exclusions:
+    rules:
+      # Generated code is not ours to style.
+      - path: internal/platform/database/sqlcgen/
+        linters: [revive, staticcheck, unparam, gocritic]
+      # Table-driven tests define their sentinel errors inline on purpose.
+      - path: _test\.go
+        linters: [err113, gochecknoglobals]
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports

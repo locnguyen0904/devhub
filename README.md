@@ -40,11 +40,22 @@ MVP bao gồm:
 | [docs/05-go-stack.md](docs/05-go-stack.md) | Thư viện Go: chọn gì, version nào, vì sao không chọn cái kia |
 | [docs/06-design-system.md](docs/06-design-system.md) | Design token, bảng màu, chữ, dark mode, khả năng tiếp cận |
 
-## Bắt đầu (sau khi có code)
+## Bắt đầu
+
+Cần: Go 1.24, Node 22 + pnpm, Docker.
 
 ```bash
-make dev        # docker compose up: postgres, redis, minio
-make migrate-up # chạy migration
-make api        # chạy backend tại :8080
-cd frontend && pnpm dev   # frontend tại :5173
+make dev            # postgres, redis, minio — chờ tới khi healthy
+make migrate-up     # tạo schema
+make openapi        # sinh docs/openapi.yaml + type TypeScript
+make api            # backend tại :8080
+
+make fe-install     # lần đầu
+make fe-dev         # frontend tại :5173
 ```
+
+Mở http://localhost:5173 — trang hiển thị trạng thái `api / postgres / redis`.
+
+Trước khi commit: `make verify` (lint Go, test Go, typecheck, eslint, kiểm tra tương phản).
+
+`make help` liệt kê mọi target.

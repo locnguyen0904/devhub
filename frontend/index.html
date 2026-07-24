@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Makes browser-default scrollbars and form controls follow the theme. -->
+    <meta name="color-scheme" content="light dark" />
+    <title>DevHub</title>
+    <script>
+      // Runs before first paint. Putting this in a useEffect would flash a white
+      // frame on every load for dark-mode users. See docs/06-design-system.md §7.
+      (function () {
+        var saved = localStorage.getItem("theme");
+        var dark =
+          saved === "dark" ||
+          (saved !== "light" &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.classList.toggle("dark", dark);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

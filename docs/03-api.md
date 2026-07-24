@@ -13,22 +13,25 @@ Mọi lỗi trả về cùng một hình dạng:
   "error": {
     "code": "validation_failed",
     "message": "Dữ liệu gửi lên không hợp lệ",
-    "fields": { "title": "không được để trống" },
-    "request_id": "01J8X2K9..."
+    "fields": { "title": "không được để trống" }
   }
 }
 ```
 
-| HTTP | `code` tiêu biểu | Khi nào |
+**Mã tra cứu log nằm ở header `X-Request-ID`, không nằm trong body.** Lý do là kỹ thuật: `huma` dựng body lỗi qua một hàm không nhận `context`, nên nó không thể biết request id. Header thì middleware set được, và mọi response — kể cả 404 do router trả — đều có.
+
+| HTTP | `code` | Khi nào |
 |---|---|---|
 | 400 | `invalid_request` | JSON hỏng, tham số sai kiểu |
 | 401 | `unauthenticated` | thiếu token / token hết hạn |
 | 403 | `forbidden` | đã đăng nhập nhưng không sở hữu tài nguyên |
 | 404 | `not_found` | không tồn tại, hoặc tồn tại nhưng người gọi không được phép biết |
+| 405 | `method_not_allowed` | đường dẫn đúng nhưng sai phương thức |
 | 409 | `conflict` | slug trùng, đã reaction rồi |
 | 422 | `validation_failed` | cú pháp đúng nhưng vi phạm nghiệp vụ |
 | 429 | `rate_limited` | kèm header `Retry-After` |
-| 500 | `internal_error` | luôn kèm `request_id` để tra log |
+| 503 | `service_unavailable` | phụ thuộc không trả lời |
+| 500 | `internal_error` | tra log bằng `X-Request-ID` |
 
 Nguyên tắc: `message` viết cho người đọc và có thể hiện thẳng lên UI. `code` là thứ frontend `switch` theo — **không** parse `message`.
 

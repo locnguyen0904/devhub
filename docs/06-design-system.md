@@ -91,12 +91,15 @@ Token ngữ nghĩa khai báo bằng CSS variable ở `:root` và `.dark`, rồi 
 | 200 | `#E2E8F0` | viền nhạt (light) |
 | 300 | `#CBD5E1` | viền đậm (light) |
 | 400 | `#94A3B8` | chữ phụ (dark) |
-| 500 | `#64748B` | chữ mờ (cả hai) |
+| 500 | `#64748B` | chữ mờ (**chỉ light**) |
+| — | `#7987A1` | chữ mờ (dark) — xem ghi chú bên dưới |
 | 600 | `#475569` | chữ phụ (light) |
 | 700 | `#334155` | viền đậm (dark) |
 | 800 | `#1E293B` | nền nâng (dark) · viền nhạt (dark) |
 | 900 | `#0F172A` | chữ chính (light) · nền trang (dark) |
 | 950 | `#020617` | nền chìm (dark) |
+
+> **`text-subtle` ở dark mode không dùng được `slate-500`.** Bản thiết kế đầu tiên dùng chung `#64748B` cho cả hai chế độ; script kiểm tương phản bác bỏ — trên nền `#0F172A` nó chỉ đạt **3.75**, dưới ngưỡng AA. Giá trị thay thế `#7987A1` đạt **4.92** mà vẫn mờ hơn `text-muted` (6.96), nên thứ bậc thị giác được giữ nguyên. Đây đúng là loại lỗi mà mắt thường không bắt được.
 
 **Nhấn** — thang `indigo`.
 
@@ -259,6 +262,7 @@ Toàn bộ số dưới đây do script ở §11 đo, không phải ước lư�
 |---|---|---|
 | chữ chính `slate-100` | **16.30** | 4.5 |
 | chữ phụ `slate-400` | **6.96** | 4.5 |
+| chữ mờ `#7987A1` | **4.92** | 4.5 |
 | link `indigo-400` | **5.98** | 4.5 |
 | nút chính (`slate-950` trên `indigo-400`) | **6.76** | 4.5 |
 | chữ phụ trên thẻ (`slate-400`/`slate-800`) | **5.71** | 4.5 |
