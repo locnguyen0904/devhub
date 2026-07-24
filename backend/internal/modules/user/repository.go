@@ -41,6 +41,23 @@ func (r *repository) createTx(ctx context.Context, tx pgx.Tx, p sqlcgen.CreateUs
 	return toDomain(row), nil
 }
 
+func (r *repository) findBrief(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]Brief, error) {
+	rows, err := sqlcgen.New(r.db.Pool).GetUsersByIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("get users by ids: %w", err)
+	}
+	briefs := make(map[uuid.UUID]Brief, len(rows))
+	for _, row := range rows {
+		briefs[row.ID] = Brief{
+			ID:          row.ID,
+			Username:    row.Username,
+			DisplayName: row.DisplayName,
+			AvatarURL:   row.AvatarUrl,
+		}
+	}
+	return briefs, nil
+}
+
 func toDomain(row sqlcgen.User) User {
 	return User{
 		ID:             row.ID,

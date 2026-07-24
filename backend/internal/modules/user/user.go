@@ -21,6 +21,15 @@ type User struct {
 	CreatedAt      time.Time
 }
 
+// Brief is the small slice of a user other modules embed when displaying
+// authorship — a post card needs the name and avatar, nothing more.
+type Brief struct {
+	ID          uuid.UUID
+	Username    string
+	DisplayName string
+	AvatarURL   *string
+}
+
 // GitHubIdentity is what the auth module hands over after talking to GitHub.
 // user turns it into a User; auth never touches the users table itself.
 type GitHubIdentity struct {

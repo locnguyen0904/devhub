@@ -72,6 +72,111 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/posts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the current user's posts */
+        get: operations["getMyPosts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/posts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List published posts, newest first (cursor paginated) */
+        get: operations["listFeed"];
+        put?: never;
+        /** Create a draft post */
+        post: operations["createPost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/posts/by-slug/{username}/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a published post by its public URL */
+        get: operations["getPostBySlug"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/posts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a post by id (for the editor) */
+        get: operations["getPost"];
+        put?: never;
+        post?: never;
+        /** Delete a post you authored */
+        delete: operations["deletePost"];
+        options?: never;
+        head?: never;
+        /** Update a post you authored */
+        patch: operations["updatePost"];
+        trace?: never;
+    };
+    "/api/v1/posts/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish a draft */
+        post: operations["publishPost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/posts/{id}/unpublish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Return a post to draft */
+        post: operations["unpublishPost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/readyz": {
         parameters: {
             query?: never;
@@ -92,10 +197,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Autocomplete tags, or list popular tags when q is empty */
+        get: operations["listTags"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AuthorView: {
+            avatar_url?: string;
+            display_name: string;
+            username: string;
+        };
         CheckDTO: {
             /**
              * @description Dependency name
@@ -104,6 +231,12 @@ export interface components {
             name: string;
             /** @description Whether the dependency answered */
             ok: boolean;
+        };
+        Chip: {
+            /** @description Palette key; nil means derive from name */
+            color_key?: string;
+            /** @example go */
+            name: string;
         };
         Cookie: {
             Domain: string;
@@ -124,6 +257,18 @@ export interface components {
             Unparsed: string[] | null;
             Value: string;
         };
+        CreateInputBody: {
+            body_markdown: string;
+            canonical_url?: string;
+            cover_image_url?: string;
+            subtitle?: string;
+            tags?: string[] | null;
+            title: string;
+        };
+        DeleteOutputBody: {
+            /** @example ok */
+            status: string;
+        };
         ErrorBody: {
             /**
              * @description Stable error code for clients to switch on
@@ -140,6 +285,16 @@ export interface components {
         ErrorModel: {
             error: components["schemas"]["ErrorBody"];
         };
+        FeedOutputBody: {
+            data: components["schemas"]["View"][] | null;
+            page: components["schemas"]["PageStruct"];
+        };
+        ListOutputBody: {
+            tags: components["schemas"]["Chip"][] | null;
+        };
+        ListOutputBody1: {
+            data: components["schemas"]["View"][] | null;
+        };
         LiveOutputBody: {
             /**
              * @description Always "ok" while the process is alive
@@ -150,6 +305,10 @@ export interface components {
         MessageOutputBody: {
             /** @example ok */
             status: string;
+        };
+        PageStruct: {
+            has_more: boolean;
+            next_cursor: string;
         };
         ReadyOutputBody: {
             /** @description Per-dependency probe results */
@@ -172,11 +331,47 @@ export interface components {
             token_type: string;
             user: components["schemas"]["UserView"];
         };
+        StatsView: {
+            /** Format: int64 */
+            comments: number;
+            /** Format: int64 */
+            reactions: number;
+            /** Format: int64 */
+            views: number;
+        };
+        TagView: {
+            color_key?: string;
+            name: string;
+        };
+        UpdateInputBody: {
+            body_markdown?: string;
+            cover_image_url?: string;
+            subtitle?: string;
+            title?: string;
+        };
         UserView: {
             avatar_url?: string;
             display_name: string;
             id: string;
             username: string;
+        };
+        View: {
+            author: components["schemas"]["AuthorView"];
+            body_html?: string;
+            cover_image_url?: string;
+            excerpt?: string;
+            id: string;
+            published_at?: string;
+            /** Format: int64 */
+            reading_minutes: number;
+            slug: string;
+            stats: components["schemas"]["StatsView"];
+            status: string;
+            subtitle?: string;
+            tags: components["schemas"]["TagView"][] | null;
+            title: string;
+            updated_at: string;
+            url: string;
         };
     };
     responses: never;
@@ -307,6 +502,296 @@ export interface operations {
             };
         };
     };
+    getMyPosts: {
+        parameters: {
+            query?: {
+                /** @description draft, published, or all (default all) */
+                status?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputBody1"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    listFeed: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                /** @description Page size (default 20, max 50) */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    createPost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["View"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    getPostBySlug: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                username: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["View"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    getPost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["View"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    deletePost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    updatePost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["View"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    publishPost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["View"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    unpublishPost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["View"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     getReadiness: {
         parameters: {
             query?: never;
@@ -323,6 +808,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReadyOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    listTags: {
+        parameters: {
+            query?: {
+                /** @description Prefix to autocomplete; empty for popular */
+                q?: string;
+                /** @description Max results (default 10, max 50) */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputBody"];
                 };
             };
             /** @description Error */

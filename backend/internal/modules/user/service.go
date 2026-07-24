@@ -30,6 +30,8 @@ type Service interface {
 	// caller's transaction. It runs in the caller's tx — not its own — so the
 	// oauth account the auth module writes commits atomically with the user.
 	CreateFromGitHubTx(ctx context.Context, tx pgx.Tx, gh GitHubIdentity) (User, error)
+	// FindBrief resolves many users at once, for modules that display authorship.
+	FindBrief(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]Brief, error)
 }
 
 type service struct {
@@ -42,6 +44,10 @@ func newService(repo *repository) *service {
 
 func (s *service) GetByID(ctx context.Context, id uuid.UUID) (User, error) {
 	return s.repo.getByID(ctx, id)
+}
+
+func (s *service) FindBrief(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]Brief, error) {
+	return s.repo.findBrief(ctx, ids)
 }
 
 func (s *service) CreateFromGitHubTx(ctx context.Context, tx pgx.Tx, gh GitHubIdentity) (User, error) {

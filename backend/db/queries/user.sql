@@ -11,3 +11,9 @@ RETURNING *;
 
 -- name: UsernameExists :one
 SELECT EXISTS (SELECT 1 FROM users WHERE username = @username);
+
+-- name: GetUsersByIDs :many
+-- Batch lookup so a feed of many posts resolves every author in one query
+-- instead of one per post.
+SELECT id, username, display_name, avatar_url
+FROM users WHERE id = ANY(@ids::uuid[]);

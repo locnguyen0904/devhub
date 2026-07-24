@@ -14,10 +14,13 @@ import (
 	"github.com/locnguyen0904/devhub/backend/internal/config"
 	"github.com/locnguyen0904/devhub/backend/internal/modules/auth"
 	"github.com/locnguyen0904/devhub/backend/internal/modules/health"
+	"github.com/locnguyen0904/devhub/backend/internal/modules/post"
+	"github.com/locnguyen0904/devhub/backend/internal/modules/tag"
 	"github.com/locnguyen0904/devhub/backend/internal/modules/user"
 	"github.com/locnguyen0904/devhub/backend/internal/platform/cache"
 	"github.com/locnguyen0904/devhub/backend/internal/platform/database"
 	"github.com/locnguyen0904/devhub/backend/internal/platform/httpx"
+	"github.com/locnguyen0904/devhub/backend/internal/platform/markdown"
 )
 
 // requestTimeout bounds ordinary requests. Long-running operations get their
@@ -34,6 +37,8 @@ func NewAPI(cfg config.Config, log *slog.Logger, db *database.DB, redis *cache.C
 	// Modules are built first so their middleware can join the chain below.
 	userMod := user.New(db)
 	authMod := auth.New(cfg, db, redis, userMod.Service, log)
+	tagMod := tag.New(db)
+	postMod := post.New(db, userMod.Service, tagMod.Service, markdown.NewRenderer())
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -75,6 +80,8 @@ func NewAPI(cfg config.Config, log *slog.Logger, db *database.DB, redis *cache.C
 
 	health.New(db, redis).Register(api)
 	authMod.Register(r, api)
+	tagMod.Register(api)
+	postMod.Register(api)
 
 	return r, api
 }

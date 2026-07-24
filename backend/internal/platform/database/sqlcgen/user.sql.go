@@ -104,6 +104,45 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 	return i, err
 }
 
+const getUsersByIDs = `-- name: GetUsersByIDs :many
+SELECT id, username, display_name, avatar_url
+FROM users WHERE id = ANY($1::uuid[])
+`
+
+type GetUsersByIDsRow struct {
+	ID          uuid.UUID
+	Username    string
+	DisplayName string
+	AvatarUrl   *string
+}
+
+// Batch lookup so a feed of many posts resolves every author in one query
+// instead of one per post.
+func (q *Queries) GetUsersByIDs(ctx context.Context, ids []uuid.UUID) ([]GetUsersByIDsRow, error) {
+	rows, err := q.db.Query(ctx, getUsersByIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUsersByIDsRow
+	for rows.Next() {
+		var i GetUsersByIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.DisplayName,
+			&i.AvatarUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const usernameExists = `-- name: UsernameExists :one
 SELECT EXISTS (SELECT 1 FROM users WHERE username = $1)
 `

@@ -1,5 +1,18 @@
 components:
   schemas:
+    AuthorView:
+      additionalProperties: false
+      properties:
+        avatar_url:
+          type: string
+        display_name:
+          type: string
+        username:
+          type: string
+      required:
+        - username
+        - display_name
+      type: object
     CheckDTO:
       additionalProperties: false
       properties:
@@ -14,6 +27,19 @@ components:
       required:
         - name
         - ok
+      type: object
+    Chip:
+      additionalProperties: false
+      properties:
+        color_key:
+          description: Palette key; nil means derive from name
+          type: string
+        name:
+          examples:
+            - go
+          type: string
+      required:
+        - name
       type: object
     Cookie:
       additionalProperties: false
@@ -69,6 +95,44 @@ components:
         - Raw
         - Unparsed
       type: object
+    CreateInputBody:
+      additionalProperties: false
+      properties:
+        body_markdown:
+          maxLength: 200000
+          type: string
+        canonical_url:
+          type: string
+        cover_image_url:
+          type: string
+        subtitle:
+          maxLength: 300
+          type: string
+        tags:
+          items:
+            type: string
+          maxItems: 4
+          type:
+            - array
+            - "null"
+        title:
+          maxLength: 200
+          minLength: 1
+          type: string
+      required:
+        - title
+        - body_markdown
+      type: object
+    DeleteOutputBody:
+      additionalProperties: false
+      properties:
+        status:
+          examples:
+            - ok
+          type: string
+      required:
+        - status
+      type: object
     ErrorBody:
       additionalProperties: false
       properties:
@@ -97,6 +161,45 @@ components:
       required:
         - error
       type: object
+    FeedOutputBody:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/View"
+          type:
+            - array
+            - "null"
+        page:
+          $ref: "#/components/schemas/PageStruct"
+      required:
+        - data
+        - page
+      type: object
+    ListOutputBody:
+      additionalProperties: false
+      properties:
+        tags:
+          items:
+            $ref: "#/components/schemas/Chip"
+          type:
+            - array
+            - "null"
+      required:
+        - tags
+      type: object
+    ListOutputBody1:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/View"
+          type:
+            - array
+            - "null"
+      required:
+        - data
+      type: object
     LiveOutputBody:
       additionalProperties: false
       properties:
@@ -117,6 +220,17 @@ components:
           type: string
       required:
         - status
+      type: object
+    PageStruct:
+      additionalProperties: false
+      properties:
+        has_more:
+          type: boolean
+        next_cursor:
+          type: string
+      required:
+        - next_cursor
+        - has_more
       type: object
     ReadyOutputBody:
       additionalProperties: false
@@ -157,6 +271,48 @@ components:
         - expires_in
         - user
       type: object
+    StatsView:
+      additionalProperties: false
+      properties:
+        comments:
+          format: int64
+          type: integer
+        reactions:
+          format: int64
+          type: integer
+        views:
+          format: int64
+          type: integer
+      required:
+        - reactions
+        - comments
+        - views
+      type: object
+    TagView:
+      additionalProperties: false
+      properties:
+        color_key:
+          type: string
+        name:
+          type: string
+      required:
+        - name
+      type: object
+    UpdateInputBody:
+      additionalProperties: false
+      properties:
+        body_markdown:
+          maxLength: 200000
+          type: string
+        cover_image_url:
+          type: string
+        subtitle:
+          maxLength: 300
+          type: string
+        title:
+          maxLength: 200
+          type: string
+      type: object
     UserView:
       additionalProperties: false
       properties:
@@ -172,6 +328,56 @@ components:
         - id
         - username
         - display_name
+      type: object
+    View:
+      additionalProperties: false
+      properties:
+        author:
+          $ref: "#/components/schemas/AuthorView"
+        body_html:
+          type: string
+        cover_image_url:
+          type: string
+        excerpt:
+          type: string
+        id:
+          type: string
+        published_at:
+          type: string
+        reading_minutes:
+          format: int64
+          type: integer
+        slug:
+          type: string
+        stats:
+          $ref: "#/components/schemas/StatsView"
+        status:
+          type: string
+        subtitle:
+          type: string
+        tags:
+          items:
+            $ref: "#/components/schemas/TagView"
+          type:
+            - array
+            - "null"
+        title:
+          type: string
+        updated_at:
+          type: string
+        url:
+          type: string
+      required:
+        - id
+        - slug
+        - url
+        - title
+        - status
+        - reading_minutes
+        - tags
+        - author
+        - stats
+        - updated_at
       type: object
   securitySchemes:
     bearer:
@@ -276,6 +482,267 @@ paths:
       summary: Liveness probe
       tags:
         - health
+  /api/v1/me/posts:
+    get:
+      operationId: getMyPosts
+      parameters:
+        - description: draft, published, or all (default all)
+          explode: false
+          in: query
+          name: status
+          schema:
+            description: draft, published, or all (default all)
+            type: string
+        - explode: false
+          in: query
+          name: limit
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListOutputBody1"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearer: []
+      summary: List the current user's posts
+      tags:
+        - posts
+  /api/v1/posts:
+    get:
+      operationId: listFeed
+      parameters:
+        - explode: false
+          in: query
+          name: cursor
+          schema:
+            type: string
+        - description: Page size (default 20, max 50)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: Page size (default 20, max 50)
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedOutputBody"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: List published posts, newest first (cursor paginated)
+      tags:
+        - posts
+    post:
+      operationId: createPost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInputBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/View"
+          description: Created
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearer: []
+      summary: Create a draft post
+      tags:
+        - posts
+  /api/v1/posts/by-slug/{username}/{slug}:
+    get:
+      operationId: getPostBySlug
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/View"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Get a published post by its public URL
+      tags:
+        - posts
+  /api/v1/posts/{id}:
+    delete:
+      operationId: deletePost
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteOutputBody"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearer: []
+      summary: Delete a post you authored
+      tags:
+        - posts
+    get:
+      operationId: getPost
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/View"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Get a post by id (for the editor)
+      tags:
+        - posts
+    patch:
+      operationId: updatePost
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/View"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearer: []
+      summary: Update a post you authored
+      tags:
+        - posts
+  /api/v1/posts/{id}/publish:
+    post:
+      operationId: publishPost
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/View"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearer: []
+      summary: Publish a draft
+      tags:
+        - posts
+  /api/v1/posts/{id}/unpublish:
+    post:
+      operationId: unpublishPost
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/View"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearer: []
+      summary: Return a post to draft
+      tags:
+        - posts
   /api/v1/readyz:
     get:
       description: Returns 503 with code service_unavailable when a dependency does not answer.
@@ -296,4 +763,39 @@ paths:
       summary: Readiness probe
       tags:
         - health
+  /api/v1/tags:
+    get:
+      operationId: listTags
+      parameters:
+        - description: Prefix to autocomplete; empty for popular
+          explode: false
+          in: query
+          name: q
+          schema:
+            description: Prefix to autocomplete; empty for popular
+            type: string
+        - description: Max results (default 10, max 50)
+          explode: false
+          in: query
+          name: limit
+          schema:
+            description: Max results (default 10, max 50)
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListOutputBody"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Autocomplete tags, or list popular tags when q is empty
+      tags:
+        - tags
 

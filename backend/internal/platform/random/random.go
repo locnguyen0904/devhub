@@ -8,6 +8,7 @@ package random
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 )
 
@@ -20,4 +21,14 @@ func Token(nBytes int) (string, error) {
 		return "", fmt.Errorf("read random bytes: %w", err)
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+// Hex returns a lowercase hex string of nBytes of entropy. Used where the output
+// must be URL-clean, such as a slug disambiguation suffix.
+func Hex(nBytes int) (string, error) {
+	b := make([]byte, nBytes)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("read random bytes: %w", err)
+	}
+	return hex.EncodeToString(b), nil
 }
