@@ -3,8 +3,8 @@
 Quy tắc bắt buộc khi làm việc trên repo này. Đọc [docs/](docs/) để hiểu thiết kế trước khi sửa code.
 
 - Ngôn ngữ: **mọi thứ bên trong file code viết tiếng Anh**; chỉ `docs/`, commit message và trao đổi với người dùng viết tiếng Việt.
-  - **Tiếng Anh** — tên định danh, comment, godoc; log message; **chuỗi lỗi trả về client**; **nhãn UI hiển thị cho người dùng cuối**; mô tả API (`Summary`/`Description`/`doc:` của huma) và help text CLI (`make help`). Ranh giới đơn giản: nếu nó nằm trong file `.go`/`.ts`/`.tsx`/`.sql`/`.mjs`/`Makefile`/`.yml`, nó tiếng Anh — không phân biệt ai đọc.
-  - **Tiếng Việt** — nội dung trong `docs/`, commit message, và tin nhắn trao đổi.
+  - **Tiếng Anh** — tên định danh, comment, godoc; log message; **chuỗi lỗi trả về client**; **nhãn UI hiển thị cho người dùng cuối**; mô tả API (`Summary`/`Description`/`doc:` của huma) và help text CLI (`make help`); **commit message**. Ranh giới đơn giản: nếu nó nằm trong file `.go`/`.ts`/`.tsx`/`.sql`/`.mjs`/`Makefile`/`.yml`, hoặc là commit message, thì tiếng Anh — không phân biệt ai đọc.
+  - **Tiếng Việt** — nội dung trong `docs/` và tin nhắn trao đổi với người dùng.
   - Lý do gộp cả text người dùng vào tiếng Anh: tránh ranh giới "chuỗi này ai đọc" vốn mơ hồ và hay cãi nhau. Khi cần đa ngôn ngữ thì thêm một lớp i18n, không rải tiếng Việt trong code.
 - Kiến trúc đã chốt ở `docs/01-architecture.md`. Muốn làm khác thì nêu lý do trước, đừng làm rồi báo sau.
 
@@ -208,7 +208,7 @@ cd frontend && pnpm typecheck && pnpm lint
 
 Đổi schema thì migration phải có **cả `.up.sql` và `.down.sql`**, và đã thử `make migrate-down` rồi `make migrate-up` lại.
 
-Commit message viết tiếng Việt, dòng đầu ≤ 72 ký tự, mô tả **tại sao** chứ không phải liệt kê file đã sửa.
+Commit message viết tiếng Anh, dòng đầu ≤ 72 ký tự, mô tả **tại sao** chứ không phải liệt kê file đã sửa.
 
 ---
 
