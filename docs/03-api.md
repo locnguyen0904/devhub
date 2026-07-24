@@ -252,8 +252,25 @@ Sliding window trên Redis. Response luôn kèm `X-RateLimit-Limit`, `X-RateLimi
 
 ## 10. Sinh mã tự động
 
-Backend dùng **`huma/v2`** ([05-go-stack.md §3](05-go-stack.md#3-tầng-api-humav2--quyết-định-đã-chốt)): OpenAPI 3.1 sinh ra từ chính struct Go của request/response, phục vụ tại `/openapi.json`. Frontend chạy `openapi-typescript` để sinh `shared/types/api.ts`.
+Backend dùng **`huma/v2`** ([05-go-stack.md §3](05-go-stack.md#3-tầng-api-humav2--quyết-định-đã-chốt)): OpenAPI 3.1 sinh ra từ chính struct Go của request/response. Vì spec sinh từ kiểu dữ liệu chứ không từ comment, nó không thể mô tả sai thứ mà code thực sự nhận và trả về.
 
-Vì spec sinh từ kiểu dữ liệu chứ không từ comment, nó không thể mô tả sai thứ mà code thực sự nhận và trả về.
+Spec có hai đường ra, dùng cho hai mục đích khác nhau:
+
+| Đường | Mục đích |
+|---|---|
+| `/openapi.json` + `/docs` lúc chạy | cho người đọc |
+| `go run ./cmd/api openapi` | cho sinh code — **không khởi động server**, nên CI không cần Postgres/Redis |
+
+Chuỗi sinh kiểu (`make openapi`):
+
+```
+go run ./cmd/api openapi  >  docs/openapi.yaml
+openapi-typescript        >  frontend/src/shared/types/api.ts   (sinh tự động)
+                             frontend/src/shared/types/index.ts (alias viết tay)
+```
+
+`openapi-typescript` sinh kiểu lồng sâu (`components["schemas"]["PostDTO"]`), nên có thêm một file alias mỏng để component chỉ cần `import type { Post } from "@/shared/types"`.
+
+Cả `openapi.yaml` lẫn `api.ts` đều commit vào repo. CI chạy `make openapi && git diff --exit-code` — đổi struct Go mà quên sinh lại type thì CI đỏ, tránh đúng cái trôi lệch mà việc chọn `huma` sinh ra để ngăn.
 
 Lợi ích thực tế: đổi tên một trường trong response Go làm frontend **lỗi biên dịch** ngay, thay vì lỗi `undefined` lúc chạy. Đây là ràng buộc rẻ nhất giữ hai bên khỏi trôi lệch khi chỉ có một người làm cả hai đầu.

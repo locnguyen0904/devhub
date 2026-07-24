@@ -168,7 +168,6 @@ type Config struct {
 	AccessTTL    time.Duration `env:"ACCESS_TOKEN_TTL" envDefault:"15m"`
 	GitHubID     string        `env:"GITHUB_CLIENT_ID,required"`
 	GitHubSecret string        `env:"GITHUB_CLIENT_SECRET,required"`
-	AllowOrigins []string      `env:"CORS_ALLOW_ORIGINS" envSeparator:","`
 }
 ```
 

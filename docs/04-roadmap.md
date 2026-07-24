@@ -12,15 +12,28 @@ Dựng bộ khung để mọi phase sau chỉ việc thêm module.
 
 - `docker-compose.yml`: Postgres 16, Redis 7, MinIO
 - Backend: `cmd/api`, load config từ env (fail-fast nếu thiếu biến), `chi` router + `huma.API` qua `humachi`, chuỗi middleware, graceful shutdown
-- `platform/`: pgxpool, redis client, slog, `httpx` (map lỗi domain → lỗi huma)
-- `/openapi.json` + `/docs` phục vụ được; pipeline `openapi-typescript` sinh `frontend/src/shared/types/api.ts`
+- `platform/` **chỉ 4 thư mục**: `database`, `cache`, `logger`, `httpx`. Số còn lại ra đời ở phase cần chúng — `token` ở Phase 1, `markdown` và `storage` ở Phase 2
+- `make openapi`: subcommand `go run ./cmd/api openapi` in spec (không khởi động server) → `openapi-typescript` sinh `frontend/src/shared/types/api.ts` → file alias `shared/types/index.ts` viết tay
+- CI thêm guard `make openapi && git diff --exit-code` — quên sinh lại type thì CI đỏ
 - `golang-migrate` + `sqlc`, chạy migration `000001_init` với schema §3 và §4 của [02-data-model.md](02-data-model.md)
 - Frontend: Vite + React + TS, Tailwind v4 + shadcn, React Router, TanStack Query provider, layout khung
 - Design token theo [06-design-system.md](06-design-system.md): `theme.css` với token ngữ nghĩa, light/dark song song, script chống nháy trắng, `check-contrast.mjs` chạy trong CI
 - `Makefile`: `dev`, `migrate-up/down`, `sqlc`, `lint`, `test`
 - CI (GitHub Actions): `go vet`, `golangci-lint`, `go test`, `tsc --noEmit`, `eslint`
 
-**Xong khi:** `make dev && make api` lên được, `GET /healthz` trả 200, `GET /readyz` báo đúng trạng thái Postgres + Redis, `/docs` hiển thị OpenAPI, `pnpm dev` render được trang trống có header. CI xanh.
+**Xong khi:** một **lát cắt dọc** chạy được — mở `localhost:5173` và thấy trạng thái API / Postgres / Redis hiện trên màn hình, với dữ liệu đi hết chặng:
+
+```
+Postgres → pgxpool → service → huma handler → JSON
+        → openapi.yaml → openapi-typescript → api.ts
+        → TanStack Query → Vite proxy → React → màn hình
+```
+
+Kèm theo: `make dev && make api` lên được, `/readyz` báo đúng trạng thái Postgres + Redis, `/docs` hiển thị OpenAPI, CI xanh.
+
+**Vì sao là lát cắt dọc chứ không phải 5 điều kiện rời rạc:** năm ô tick riêng lẻ có thể xanh hết mà frontend chưa từng gọi backend lần nào. Khúc rủi ro nhất của stack là đoạn `huma → openapi.yaml → openapi-typescript → api.ts` — phần mới nhất, chưa chạy thử bao giờ. Vỡ ở Phase 0 thì đổi sang `swaggo` gần như miễn phí; vỡ ở Phase 2 thì đã có 40 endpoint viết theo chữ ký `huma`.
+
+**Ràng buộc kỹ thuật:** không `Ping` Postgres/Redis trong hàm dựng ứng dụng. `pgxpool.New()` kết nối lười, nhờ vậy `go run ./cmd/api openapi` chạy được mà không cần bật database — nếu Ping ở đó, CI phải dựng cả Postgres chỉ để sinh vài kiểu TypeScript.
 
 ---
 
@@ -99,7 +112,8 @@ Phần lõi. Dài nhất, và đáng dành thời gian nhất.
 - Metrics Prometheus, dashboard cơ bản
 - Trang lỗi 404/500, error boundary
 - Kiểm tra khả năng tiếp cận: điều hướng bàn phím, độ tương phản, nhãn ARIA
-- Dockerfile multi-stage, deploy lên một VPS, HTTPS qua Caddy
+- Dockerfile multi-stage; Caddy phục vụ `frontend/dist` ở `/` và proxy `/api/*` sang Go — **cùng một origin** ([01-architecture.md §9](01-architecture.md#9-hình-trạng-triển-khai)), HTTPS Caddy tự lo
+- CD: GitHub Actions build image → push registry → ssh → `docker compose pull && up -d`; migration chạy như một lệnh riêng, không tự động lúc API khởi động
 - Sao lưu Postgres tự động hằng ngày
 
 **Xong khi:** dán link bài viết vào Slack/Twitter hiện đúng ảnh preview; Lighthouse ≥ 90 cả 4 mục; sao lưu chạy được và **đã thử phục hồi ít nhất một lần**.

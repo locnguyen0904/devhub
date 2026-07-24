@@ -84,7 +84,7 @@ devhub/
 │   │       ├── markdown/            # goldmark → HTML sanitize (bluemonday)
 │   │       ├── httpx/               # lỗi domain → lỗi huma
 │   │       ├── api/                 # dựng huma.API trên chi, cấu hình OpenAPI
-│   │       ├── middleware/          # request id, logger, recover, cors, auth, rate limit
+│   │       ├── middleware/          # request id, logger, recover, timeout, auth, rate limit
 │   │       ├── token/               # JWT sign/verify
 │   │       └── logger/              # slog có cấu trúc
 │   ├── db/
@@ -116,6 +116,8 @@ devhub/
 │   └── Dockerfile.api
 └── docs/
 ```
+
+Cây trên là **hình dạng cuối giai đoạn 1, không phải danh sách phải dựng ở Phase 0.** Mỗi thư mục ra đời khi có người gọi nó: Phase 0 chỉ cần `platform/{database,cache,logger,httpx}`; `token/` xuất hiện ở Phase 1 cùng auth; `markdown/` và `storage/` ở Phase 2 cùng bài viết. Tạo sẵn thư mục rỗng hoặc viết code chưa ai gọi là vi phạm `CLAUDE.md §1`.
 
 ## 4. Giải phẫu một module
 
@@ -212,10 +214,13 @@ Thứ tự đăng ký (ngoài vào trong):
 | 2 | `RealIP` | lấy IP thật sau proxy |
 | 3 | `Recoverer` | bắt panic → 500 + log stack, không sập server |
 | 4 | `Logger` | slog: method, path, status, duration, request_id, user_id |
-| 5 | `CORS` | whitelist origin frontend, `credentials: true` |
-| 6 | `Timeout` | 15s cho request thường |
-| 7 | `RateLimit` | Redis sliding window; theo user_id nếu đã login, theo IP nếu chưa |
-| 8 | `Auth` | chỉ gắn cho route cần — verify JWT, nạp user vào context |
+| 5 | `Timeout` | 15s cho request thường |
+| 6 | `RateLimit` | Redis sliding window; theo user_id nếu đã login, theo IP nếu chưa |
+| 7 | `Auth` | chỉ gắn cho route cần — verify JWT, nạp user vào context |
+
+**Không có middleware CORS, và đó là chủ đích.** Frontend cùng origin với API (§9): production do Caddy phục vụ file tĩnh ở `/` và proxy `/api/*` sang Go; dev thì `server.proxy` của Vite làm đúng việc đó. Trình duyệt nhìn thấy mọi request là same-origin nên preflight không bao giờ xảy ra.
+
+Bỏ được CORS không chỉ là bớt một middleware — nó xoá luôn cả một nhóm lỗi cấu hình (thiếu origin trong whitelist, quên `credentials: true`, preflight bị rate limit chặn) và giữ cho cookie refresh token dùng được `SameSite=Strict`.
 
 ## 6. Xử lý lỗi
 
@@ -248,13 +253,34 @@ Bộ đếm (số reaction, số comment, lượt xem) không đọc bằng `COU
 2. **Gộp rồi ghi**: lượt xem đẩy vào Redis (`INCR post:views:{id}`), một goroutine flush xuống Postgres mỗi 60 giây. Sai lệch tối đa 60s — chấp nhận được với chỉ số này.
 3. **Đối soát**: cron hằng ngày `COUNT(*)` lại và sửa cột đếm nếu lệch.
 
-## 9. Quan sát hệ thống (observability)
+## 9. Hình trạng triển khai
+
+**Frontend và API dùng chung một origin.** Caddy đứng trước, phục vụ bản build tĩnh của React ở `/` và proxy `/api/*` sang Go.
+
+```
+                    ┌──────────── Caddy (TLS tự động) ────────────┐
+  devhub.dev  ────► │  /          → frontend/dist (file tĩnh)     │
+                    │  /api/*     → 127.0.0.1:8080 (Go API)       │
+                    └─────────────────────────────────────────────┘
+```
+
+Lúc dev, `server.proxy` của Vite lặp lại đúng hình trạng này (`/api` → `localhost:8080`), nên môi trường dev và production hành xử giống nhau về mặt origin.
+
+Ba hệ quả kéo theo, tất cả đều theo hướng đơn giản hơn:
+
+1. **Không cần CORS** (§5).
+2. **Cookie refresh token giữ được `SameSite=Strict`** đúng như thiết kế ở [03-api.md §2](03-api.md#2-luồng-xác-thực). Nếu tách frontend sang host khác site (ví dụ Vercel), cookie `Strict` sẽ bị trình duyệt chặn hoàn toàn và phải hạ xuống `SameSite=None`, mở lại đúng bề mặt CSRF mà thiết kế này đang tránh.
+3. **Không có biến `API_BASE_URL`** ở frontend — mọi lời gọi là đường dẫn tương đối `/api/v1/...`.
+
+Đánh đổi: frontend phải deploy cùng VPS, không dùng được CDN dựng sẵn của Vercel/Netlify. Với quy mô này thì Caddy phục vụ file tĩnh là quá đủ; khi cần CDN thì đặt Cloudflare trước toàn bộ domain, không phải tách origin.
+
+## 10. Quan sát hệ thống (observability)
 
 - **Log**: `slog` dạng JSON, luôn kèm `request_id` và `user_id`.
 - **Metrics**: `/metrics` Prometheus — request duration theo route, kết nối pool DB, tỉ lệ cache hit.
 - **Health**: `/healthz` (liveness, luôn 200) và `/readyz` (ping Postgres + Redis).
 
-## 10. Những gì cố tình KHÔNG làm ở giai đoạn 1
+## 11. Những gì cố tình KHÔNG làm ở giai đoạn 1
 
 | Bỏ qua | Lý do |
 |---|---|
