@@ -13,8 +13,8 @@ const pingDatabase = `-- name: PingDatabase :one
 SELECT 1::int AS ok
 `
 
-// Round-trip thật qua đường sqlc để trang trạng thái chứng minh được cả chặng
-// Postgres → repository → service, chứ không chỉ chứng minh pool mở được.
+// A real round-trip through the sqlc path, so the status page proves the whole
+// Postgres -> repository -> service chain rather than just that the pool opened.
 func (q *Queries) PingDatabase(ctx context.Context) (int32, error) {
 	row := q.db.QueryRow(ctx, pingDatabase)
 	var ok int32

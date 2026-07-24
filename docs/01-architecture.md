@@ -240,7 +240,7 @@ Service trả `*httpx.Error` — thuần domain, không import `huma`. Handler g
 ## 7. Xác thực
 
 - **Access token**: JWT (HS256), sống 15 phút, chứa `sub`, `username`, `exp`, `jti`. Frontend giữ **trong memory**, gửi qua header `Authorization: Bearer`. Không để trong localStorage (chống XSS đọc trộm), không để trong cookie gửi tự động (khỏi lo CSRF).
-- **Refresh token**: chuỗi ngẫu nhiên 32 byte, lưu **hash** trong DB, sống 30 ngày. Đặt trong cookie `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth/refresh` — cookie chỉ được gửi tới đúng endpoint refresh, nên không có bề mặt CSRF cho các API khác.
+- **Refresh token**: chuỗi ngẫu nhiên 32 byte, lưu **hash** trong DB, sống 30 ngày. Đặt trong cookie `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth` — cookie chỉ được gửi tới nhóm endpoint auth (`refresh` và `logout`, cả hai đều cần đọc nó), nên không có bề mặt CSRF cho các API khác. `Secure` bật theo môi trường: tắt khi dev để cookie đi qua `http://localhost`, bật ở production.
 - **Xoay vòng token**: mỗi lần refresh sinh token mới và thu hồi token cũ. Nếu một refresh token đã thu hồi bị dùng lại → coi như bị đánh cắp, thu hồi toàn bộ session của user đó.
 
 Chi tiết luồng OAuth xem [03-api.md](03-api.md#2-luồng-xác-thực).

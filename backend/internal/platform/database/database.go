@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -35,4 +36,24 @@ func New(ctx context.Context, url string) (*DB, error) {
 // Close releases every pooled connection.
 func (db *DB) Close() {
 	db.Pool.Close()
+}
+
+// InTx runs fn inside a transaction, committing on success and rolling back on
+// any error or panic. Callers that must write several tables atomically — such
+// as provisioning a user together with their oauth account — use this.
+func (db *DB) InTx(ctx context.Context, fn func(tx pgx.Tx) error) error {
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	// Rollback after commit is a no-op, so this is safe on the success path too.
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := fn(tx); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+	return nil
 }

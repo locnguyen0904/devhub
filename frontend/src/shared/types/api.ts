@@ -4,6 +4,57 @@
  */
 
 export interface paths {
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke the current session */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke every session for the current user */
+        post: operations["logoutAll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Exchange the refresh cookie for a new access token */
+        post: operations["refreshSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/healthz": {
         parameters: {
             query?: never;
@@ -54,6 +105,25 @@ export interface components {
             /** @description Whether the dependency answered */
             ok: boolean;
         };
+        Cookie: {
+            Domain: string;
+            /** Format: date-time */
+            Expires: string;
+            HttpOnly: boolean;
+            /** Format: int64 */
+            MaxAge: number;
+            Name: string;
+            Partitioned: boolean;
+            Path: string;
+            Quoted: boolean;
+            Raw: string;
+            RawExpires: string;
+            /** Format: int64 */
+            SameSite: number;
+            Secure: boolean;
+            Unparsed: string[] | null;
+            Value: string;
+        };
         ErrorBody: {
             /**
              * @description Stable error code for clients to switch on
@@ -77,6 +147,10 @@ export interface components {
              */
             status: string;
         };
+        MessageOutputBody: {
+            /** @example ok */
+            status: string;
+        };
         ReadyOutputBody: {
             /** @description Per-dependency probe results */
             checks: components["schemas"]["CheckDTO"][];
@@ -85,6 +159,24 @@ export interface components {
              * @example ok
              */
             status: string;
+        };
+        SessionResponse: {
+            /** @description Short-lived bearer token, kept in memory by the client */
+            access_token: string;
+            /**
+             * Format: int64
+             * @description Seconds until the access token expires
+             */
+            expires_in: number;
+            /** @example Bearer */
+            token_type: string;
+            user: components["schemas"]["UserView"];
+        };
+        UserView: {
+            avatar_url?: string;
+            display_name: string;
+            id: string;
+            username: string;
         };
     };
     responses: never;
@@ -95,6 +187,97 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                devhub_refresh?: components["schemas"]["Cookie"];
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    logoutAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    refreshSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                devhub_refresh?: components["schemas"]["Cookie"];
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     getLiveness: {
         parameters: {
             query?: never;

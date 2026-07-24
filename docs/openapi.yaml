@@ -15,6 +15,60 @@ components:
         - name
         - ok
       type: object
+    Cookie:
+      additionalProperties: false
+      properties:
+        Domain:
+          type: string
+        Expires:
+          format: date-time
+          type: string
+        HttpOnly:
+          type: boolean
+        MaxAge:
+          format: int64
+          type: integer
+        Name:
+          type: string
+        Partitioned:
+          type: boolean
+        Path:
+          type: string
+        Quoted:
+          type: boolean
+        Raw:
+          type: string
+        RawExpires:
+          type: string
+        SameSite:
+          format: int64
+          type: integer
+        Secure:
+          type: boolean
+        Unparsed:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+        Value:
+          type: string
+      required:
+        - Name
+        - Value
+        - Quoted
+        - Path
+        - Domain
+        - Expires
+        - RawExpires
+        - MaxAge
+        - Secure
+        - HttpOnly
+        - SameSite
+        - Partitioned
+        - Raw
+        - Unparsed
+      type: object
     ErrorBody:
       additionalProperties: false
       properties:
@@ -54,6 +108,16 @@ components:
       required:
         - status
       type: object
+    MessageOutputBody:
+      additionalProperties: false
+      properties:
+        status:
+          examples:
+            - ok
+          type: string
+      required:
+        - status
+      type: object
     ReadyOutputBody:
       additionalProperties: false
       properties:
@@ -71,12 +135,128 @@ components:
         - status
         - checks
       type: object
+    SessionResponse:
+      additionalProperties: false
+      properties:
+        access_token:
+          description: Short-lived bearer token, kept in memory by the client
+          type: string
+        expires_in:
+          description: Seconds until the access token expires
+          format: int64
+          type: integer
+        token_type:
+          examples:
+            - Bearer
+          type: string
+        user:
+          $ref: "#/components/schemas/UserView"
+      required:
+        - access_token
+        - token_type
+        - expires_in
+        - user
+      type: object
+    UserView:
+      additionalProperties: false
+      properties:
+        avatar_url:
+          type: string
+        display_name:
+          type: string
+        id:
+          type: string
+        username:
+          type: string
+      required:
+        - id
+        - username
+        - display_name
+      type: object
+  securitySchemes:
+    bearer:
+      bearerFormat: JWT
+      scheme: bearer
+      type: http
 info:
   description: API for the DevHub technical blogging platform.
   title: DevHub API
   version: 0.1.0
 openapi: 3.1.0
 paths:
+  /api/v1/auth/logout:
+    post:
+      operationId: logout
+      parameters:
+        - in: cookie
+          name: devhub_refresh
+          schema:
+            $ref: "#/components/schemas/Cookie"
+      responses:
+        "204":
+          description: No Content
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Revoke the current session
+      tags:
+        - auth
+  /api/v1/auth/logout-all:
+    post:
+      operationId: logoutAll
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageOutputBody"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearer: []
+      summary: Revoke every session for the current user
+      tags:
+        - auth
+  /api/v1/auth/refresh:
+    post:
+      operationId: refreshSession
+      parameters:
+        - in: cookie
+          name: devhub_refresh
+          schema:
+            $ref: "#/components/schemas/Cookie"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+          description: OK
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Exchange the refresh cookie for a new access token
+      tags:
+        - auth
   /api/v1/healthz:
     get:
       operationId: getLiveness

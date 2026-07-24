@@ -1,13 +1,22 @@
-DATABASE_URL ?= postgres://devhub:devhub@localhost:5432/devhub?sslmode=disable
-REDIS_URL    ?= redis://localhost:6379/0
+# Load .env if present (git-ignored). Real secrets live here; the ?= defaults
+# below cover CI, where no .env exists. .env values win because -include runs first.
+-include .env
+
+DATABASE_URL         ?= postgres://devhub:devhub@localhost:5432/devhub?sslmode=disable
+REDIS_URL            ?= redis://localhost:6379/0
+# Dev/CI placeholders only. Production must set real values; these let `make
+# openapi` build the spec in CI without real credentials (it never uses them).
+JWT_SECRET           ?= dev-insecure-secret-do-not-use-in-production
+GITHUB_CLIENT_ID     ?= dev-client-id
+GITHUB_CLIENT_SECRET ?= dev-client-secret
 
 # The golang-migrate CLI loads database drivers behind build tags, and `go tool`
 # cannot pass tags — so run it through `go run -tags`. The version still comes
 # from go.mod, so dev machines and CI use the same one.
 MIGRATE := go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate
 
-export DATABASE_URL
-export REDIS_URL
+export DATABASE_URL REDIS_URL JWT_SECRET GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET
+export APP_ENV PORT
 
 .PHONY: help dev dev-down dev-logs migrate-up migrate-down migrate-new sqlc openapi api test lint fe-install fe-dev fe-lint fe-typecheck fe-contrast verify
 

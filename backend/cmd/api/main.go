@@ -55,7 +55,7 @@ func run() error {
 		}
 	}()
 
-	router, api := server.NewAPI(log, db, redis)
+	router, api := server.NewAPI(cfg, log, db, redis)
 
 	if len(os.Args) > 1 && os.Args[1] == "openapi" {
 		spec, merr := api.OpenAPI().YAML()

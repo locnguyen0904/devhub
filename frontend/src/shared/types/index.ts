@@ -10,3 +10,6 @@ import type { components } from "./api";
 
 export type ReadyStatus = components["schemas"]["ReadyOutputBody"];
 export type HealthCheck = components["schemas"]["CheckDTO"];
+
+export type Session = components["schemas"]["SessionResponse"];
+export type AuthUser = components["schemas"]["UserView"];

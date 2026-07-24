@@ -89,7 +89,7 @@ Kiểm tra `state` là bắt buộc — thiếu nó thì kẻ tấn công có th
 
 | Method | Path | Auth | Mô tả |
 |---|---|---|---|
-| `GET` | `/auth/github` | — | Chuyển hướng sang GitHub. Nhận `?redirect=` để quay lại đúng trang sau khi đăng nhập (chỉ chấp nhận đường dẫn nội bộ) |
+| `GET` | `/auth/github` | — | Chuyển hướng sang GitHub (Phase 1 luôn quay về frontend root sau khi đăng nhập; `?redirect=` để phase sau) |
 | `GET` | `/auth/github/callback` | — | GitHub gọi về. Đặt cookie refresh, chuyển hướng về frontend |
 | `POST` | `/auth/refresh` | cookie | Đổi refresh token lấy access token mới, đồng thời xoay vòng refresh token |
 | `POST` | `/auth/logout` | cookie | Thu hồi refresh token hiện tại, xoá cookie |

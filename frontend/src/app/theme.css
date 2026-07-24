@@ -8,106 +8,107 @@
    slate-600 — that is what makes dark mode a value swap instead of a rewrite.
    Contrast ratios for every pair below are asserted by scripts/check-contrast.mjs. */
 :root {
-  --surface: #ffffff;
-  --surface-raised: #f8fafc;
-  --surface-sunken: #f1f5f9;
+    --surface: #ffffff;
+    --surface-raised: #f8fafc;
+    --surface-sunken: #f1f5f9;
 
-  --text-primary: #0f172a;
-  --text-muted: #475569;
-  --text-subtle: #64748b;
+    --text-primary: #0f172a;
+    --text-muted: #475569;
+    --text-subtle: #64748b;
 
-  --border-subtle: #e2e8f0;
-  --border-strong: #cbd5e1;
+    --border-subtle: #e2e8f0;
+    --border-strong: #cbd5e1;
 
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
-  --accent-subtle: #eef2ff;
-  /* Inverts between modes: dark mode puts near-black text on a light indigo.
+    --accent: #4f46e5;
+    --accent-hover: #4338ca;
+    --accent-subtle: #eef2ff;
+    /* Inverts between modes: dark mode puts near-black text on a light indigo.
      Hardcoding text-white on buttons produces an unreadable dark mode. */
-  --accent-fg: #ffffff;
+    --accent-fg: #ffffff;
 
-  --success: #047857;
-  --danger: #be123c;
+    --success: #047857;
+    --danger: #be123c;
 
-  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 2px 8px rgb(15 23 42 / 0.06);
+    --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 2px 8px rgb(15 23 42 / 0.06);
 }
 
 .dark {
-  --surface: #0f172a;
-  --surface-raised: #1e293b;
-  --surface-sunken: #020617;
+    --surface: #0f172a;
+    --surface-raised: #1e293b;
+    --surface-sunken: #020617;
 
-  --text-primary: #f1f5f9;
-  --text-muted: #94a3b8;
-  /* Not slate-500: on this background it lands at 3.75, below AA. This value
+    --text-primary: #f1f5f9;
+    --text-muted: #94a3b8;
+    /* Not slate-500: on this background it lands at 3.75, below AA. This value
      measures 4.92 while staying dimmer than --text-muted (6.96), so the
      hierarchy survives. Caught by scripts/check-contrast.mjs. */
-  --text-subtle: #7987a1;
+    --text-subtle: #7987a1;
 
-  --border-subtle: #1e293b;
-  --border-strong: #334155;
+    --border-subtle: #1e293b;
+    --border-strong: #334155;
 
-  --accent: #818cf8;
-  --accent-hover: #a5b4fc;
-  --accent-subtle: #1e1b4b;
-  --accent-fg: #020617;
+    --accent: #818cf8;
+    --accent-hover: #a5b4fc;
+    --accent-subtle: #1e1b4b;
+    --accent-fg: #020617;
 
-  --success: #6ee7b7;
-  --danger: #fda4af;
+    --success: #6ee7b7;
+    --danger: #fda4af;
 
-  /* Shadows are invisible on a dark background; depth comes from surface
+    /* Shadows are invisible on a dark background; depth comes from surface
      lightness plus a border instead. */
-  --shadow-card: none;
+    --shadow-card: none;
 }
 
 @theme inline {
-  --color-surface: var(--surface);
-  --color-surface-raised: var(--surface-raised);
-  --color-surface-sunken: var(--surface-sunken);
+    --color-surface: var(--surface);
+    --color-surface-raised: var(--surface-raised);
+    --color-surface-sunken: var(--surface-sunken);
 
-  --color-text-primary: var(--text-primary);
-  --color-text-muted: var(--text-muted);
-  --color-text-subtle: var(--text-subtle);
+    --color-text-primary: var(--text-primary);
+    --color-text-muted: var(--text-muted);
+    --color-text-subtle: var(--text-subtle);
 
-  --color-border-subtle: var(--border-subtle);
-  --color-border-strong: var(--border-strong);
+    --color-border-subtle: var(--border-subtle);
+    --color-border-strong: var(--border-strong);
 
-  --color-accent: var(--accent);
-  --color-accent-hover: var(--accent-hover);
-  --color-accent-subtle: var(--accent-subtle);
-  --color-accent-fg: var(--accent-fg);
+    --color-accent: var(--accent);
+    --color-accent-hover: var(--accent-hover);
+    --color-accent-subtle: var(--accent-subtle);
+    --color-accent-fg: var(--accent-fg);
 
-  --color-success: var(--success);
-  --color-danger: var(--danger);
+    --color-success: var(--success);
+    --color-danger: var(--danger);
 
-  --radius-tag: 6px;
-  --radius-control: 8px;
-  --radius-card: 12px;
+    --radius-tag: 6px;
+    --radius-control: 8px;
+    --radius-card: 12px;
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 @layer base {
-  body {
-    background-color: var(--surface);
-    color: var(--text-primary);
-    font-family: var(--font-sans);
-  }
-
-  /* Never remove the focus indicator without replacing it. :focus-visible keeps
-     the ring off mouse clicks while preserving it for keyboard users. */
-  :focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      transition-duration: 0.01ms !important;
+    body {
+        background-color: var(--surface);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
     }
-  }
+
+    /* Never remove the focus indicator without replacing it. :focus-visible keeps
+     the ring off mouse clicks while preserving it for keyboard users. */
+    :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
 }

@@ -3,7 +3,9 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -30,6 +32,28 @@ func (c *Client) Ping(ctx context.Context) error {
 		return fmt.Errorf("ping redis: %w", err)
 	}
 	return nil
+}
+
+// Set stores a value with an expiry.
+func (c *Client) Set(ctx context.Context, key, value string, ttl time.Duration) error {
+	if err := c.rdb.Set(ctx, key, value, ttl).Err(); err != nil {
+		return fmt.Errorf("set %s: %w", key, err)
+	}
+	return nil
+}
+
+// GetDel reads a key and deletes it in one atomic step, returning found=false
+// when the key is absent. Single-use tokens like OAuth state rely on the
+// atomicity: two callbacks racing on the same state cannot both succeed.
+func (c *Client) GetDel(ctx context.Context, key string) (value string, found bool, err error) {
+	v, err := c.rdb.GetDel(ctx, key).Result()
+	if errors.Is(err, redis.Nil) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("getdel %s: %w", key, err)
+	}
+	return v, true, nil
 }
 
 // Close shuts the client down.
