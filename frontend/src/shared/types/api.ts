@@ -390,8 +390,11 @@ export interface components {
             data: components["schemas"]["CommentView"][];
         };
         CommentView: {
-            author: components["schemas"]["CommentAuthor"];
+            /** @description Absent on a deleted comment */
+            author?: components["schemas"]["CommentAuthor"];
             body_html: string | null;
+            /** @description Source for the author's edit form; null when deleted */
+            body_markdown: string | null;
             created_at: string;
             deleted: boolean;
             id: string;

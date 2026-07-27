@@ -30,9 +30,14 @@ export function App() {
               DevHub
             </Link>
             {user && (
-              <Link to="/me/posts" className="text-sm text-text-muted hover:text-text-primary">
-                My posts
-              </Link>
+              <>
+                <Link to="/me/posts" className="text-sm text-text-muted hover:text-text-primary">
+                  My posts
+                </Link>
+                <Link to="/me/saved" className="text-sm text-text-muted hover:text-text-primary">
+                  Saved
+                </Link>
+              </>
             )}
           </nav>
           <form

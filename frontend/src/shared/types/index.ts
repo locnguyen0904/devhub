@@ -20,6 +20,10 @@ export type PostList = components["schemas"]["CardListOutputBody"];
 export type CreatePostBody = components["schemas"]["CreateInputBody"];
 export type UpdatePostBody = components["schemas"]["UpdateInputBody"];
 export type TagChip = components["schemas"]["Chip"];
+
+export type Comment = components["schemas"]["CommentView"];
+export type CommentTree = components["schemas"]["CommentTreeOutputBody"];
+export type ReactionState = components["schemas"]["ReactionStateOutputBody"];
 export type PresignResult = components["schemas"]["PresignOutputBody"];
 export type SearchResults = components["schemas"]["SearchOutputBody"];
 export type SearchHit = components["schemas"]["SearchHitView"];

@@ -11,6 +11,7 @@ import { RequireAuth } from "@/app/RequireAuth";
 import { FeedPage } from "@/features/posts/FeedPage";
 import { MyPostsPage } from "@/features/posts/MyPostsPage";
 import { PostDetailPage } from "@/features/posts/PostDetailPage";
+import { SavedPage } from "@/features/posts/SavedPage";
 import { SearchPage } from "@/features/posts/SearchPage";
 import { TagPage } from "@/features/posts/TagPage";
 
@@ -65,6 +66,14 @@ createRoot(root).render(
               element={
                 <RequireAuth>
                   <MyPostsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="me/saved"
+              element={
+                <RequireAuth>
+                  <SavedPage />
                 </RequireAuth>
               }
             />

@@ -74,6 +74,14 @@ export function usePostBySlug(username: string, slug: string) {
   });
 }
 
+/** The posts the current user has bookmarked, newest saved first. */
+export function useBookmarks() {
+  return useQuery({
+    queryKey: ["bookmarks"],
+    queryFn: ({ signal }) => apiGet<PostList>("/me/bookmarks", signal),
+  });
+}
+
 /** The current user's posts, filtered by status. */
 export function useMyPosts(status: "all" | "draft" | "published") {
   return useQuery({

@@ -17,13 +17,14 @@ type CommentAuthor struct {
 // CommentView is one comment in the tree. A deleted comment has a null body and
 // author but keeps its replies, so the thread stays intact.
 type CommentView struct {
-	ID        string         `json:"id"`
-	BodyHTML  *string        `json:"body_html"`
-	Author    *CommentAuthor `json:"author"`
-	Deleted   bool           `json:"deleted"`
-	CreatedAt string         `json:"created_at"`
-	UpdatedAt string         `json:"updated_at"`
-	Replies   []CommentView  `json:"replies" nullable:"false"`
+	ID           string         `json:"id"`
+	BodyHTML     *string        `json:"body_html"`
+	BodyMarkdown *string        `json:"body_markdown" doc:"Source for the author's edit form; null when deleted"`
+	Author       *CommentAuthor `json:"author,omitempty" doc:"Absent on a deleted comment"`
+	Deleted      bool           `json:"deleted"`
+	CreatedAt    string         `json:"created_at"`
+	UpdatedAt    string         `json:"updated_at"`
+	Replies      []CommentView  `json:"replies" nullable:"false"`
 }
 
 // --- Inputs / outputs ---
@@ -97,6 +98,8 @@ func toView(c Comment, author user.Brief, replies []CommentView) CommentView {
 	if !c.Deleted {
 		html := c.BodyHTML
 		v.BodyHTML = &html
+		md := c.BodyMarkdown
+		v.BodyMarkdown = &md
 		v.Author = &CommentAuthor{
 			Username:    author.Username,
 			DisplayName: author.DisplayName,

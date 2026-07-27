@@ -1,6 +1,9 @@
 import { useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 
+import { CommentSection } from "@/features/comments/CommentSection";
+import { ReactionBar } from "@/features/reactions/ReactionBar";
+
 import { tagClass } from "./tag-color";
 import { recordView, usePostBySlug } from "./api";
 
@@ -64,6 +67,12 @@ export function PostDetailPage() {
         className="article mt-8"
         dangerouslySetInnerHTML={{ __html: post.body_html ?? "" }}
       />
+
+      <div className="mt-8 border-t border-border-subtle pt-6">
+        <ReactionBar post={post} />
+      </div>
+
+      <CommentSection postId={post.id} />
     </article>
   );
 }
