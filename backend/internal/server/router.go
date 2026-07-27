@@ -3,6 +3,7 @@
 package server
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"time"
@@ -29,18 +30,22 @@ import (
 // own budget when they appear.
 const requestTimeout = 15 * time.Second
 
+// Background runs a module's periodic workers until ctx is cancelled.
+type Background func(ctx context.Context)
+
 // NewAPI builds the chi router, mounts huma on it, and registers every module.
+// It also returns a Background runner for the modules' periodic workers.
 //
 // There is no CORS middleware and that is deliberate: frontend and API share an
 // origin (docs/01-architecture.md §9), so preflight never happens.
-func NewAPI(cfg config.Config, log *slog.Logger, db *database.DB, redis *cache.Client) (chi.Router, huma.API) {
+func NewAPI(cfg config.Config, log *slog.Logger, db *database.DB, redis *cache.Client) (chi.Router, huma.API, Background) {
 	httpx.UseErrorModel()
 
 	// Modules are built first so their middleware can join the chain below.
 	userMod := user.New(db)
 	authMod := auth.New(cfg, db, redis, userMod.Service, log)
 	tagMod := tag.New(db)
-	postMod := post.New(db, userMod.Service, tagMod.Service, markdown.NewRenderer())
+	postMod := post.New(db, userMod.Service, tagMod.Service, markdown.NewRenderer(), redis, log)
 	uploadMod := upload.NewModule(storage.New(storage.Config{
 		Endpoint:  cfg.Storage.Endpoint,
 		Region:    cfg.Storage.Region,
@@ -94,5 +99,11 @@ func NewAPI(cfg config.Config, log *slog.Logger, db *database.DB, redis *cache.C
 	postMod.Register(api)
 	uploadMod.Register(api)
 
-	return r, api
+	// Periodic workers. Started by main after the openapi subcommand check, so
+	// generating the spec never spins up a background loop.
+	background := func(ctx context.Context) {
+		postMod.RunViewFlusher(ctx)
+	}
+
+	return r, api, background
 }

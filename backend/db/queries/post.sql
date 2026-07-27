@@ -60,6 +60,47 @@ WHERE status = 'published' AND deleted_at IS NULL
 ORDER BY published_at DESC, id DESC
 LIMIT @lim;
 
+-- name: ListHotFeed :many
+-- Hacker News style ranking (docs/02-data-model.md §8): comments weigh 2x
+-- reactions, and the age penalty pushes older posts down. Bounded to 7 days so
+-- the scan stays small; the result is cached in Redis, so this runs rarely.
+-- The score is only an ORDER BY key, never selected, to avoid a float-to-int
+-- scan mismatch.
+SELECT sqlc.embed(p) FROM posts p
+WHERE p.status = 'published' AND p.deleted_at IS NULL
+  AND p.published_at > now() - INTERVAL '7 days'
+ORDER BY (p.reaction_count + 2 * p.comment_count + 1)
+    / POWER(EXTRACT(EPOCH FROM (now() - p.published_at)) / 3600 + 2, 1.5) DESC
+LIMIT @lim;
+
+-- name: ListFeedByTag :many
+SELECT sqlc.embed(p) FROM posts p
+JOIN post_tags pt ON pt.post_id = p.id
+JOIN tags t ON t.id = pt.tag_id
+WHERE t.name = @tag AND p.status = 'published' AND p.deleted_at IS NULL
+  AND (@use_cursor::bool = false OR (p.published_at, p.id) < (@cursor_at::timestamptz, @cursor_id::uuid))
+ORDER BY p.published_at DESC, p.id DESC
+LIMIT @lim;
+
+-- name: SearchPosts :many
+-- Full-text search over the generated search_vector. 'simple' config matches
+-- how the vector is built (no English stemmer to mangle Vietnamese). The
+-- headline is a snippet of the body with the matched terms marked.
+SELECT sqlc.embed(p),
+    ts_headline('simple', p.body_markdown, query, 'MaxWords=30, MinWords=15, MaxFragments=1') AS headline
+FROM posts p, websearch_to_tsquery('simple', @q) query
+WHERE p.status = 'published' AND p.deleted_at IS NULL
+  AND p.search_vector @@ query
+ORDER BY ts_rank(p.search_vector, query) DESC
+LIMIT @lim;
+
+-- name: AddViewCounts :exec
+-- Apply many buffered view deltas in one statement. Rows for posts that no
+-- longer exist simply match nothing.
+UPDATE posts SET view_count = view_count + d.delta
+FROM (SELECT unnest(@ids::uuid[]) AS id, unnest(@deltas::bigint[]) AS delta) d
+WHERE posts.id = d.id;
+
 -- name: ListMyPosts :many
 SELECT * FROM posts
 WHERE author_id = @author_id AND deleted_at IS NULL

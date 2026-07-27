@@ -63,6 +63,32 @@ func TestRenderHighlightsCodeWithClasses(t *testing.T) {
 	}
 }
 
+func TestSanitizeHeadlineKeepsBoldStripsRest(t *testing.T) {
+	r := NewRenderer()
+	tests := []struct {
+		name       string
+		snippet    string
+		mustHave   string
+		mustReject string
+	}{
+		{"keeps bold markers", "a <b>match</b> here", "<b>match</b>", ""},
+		{"strips script", "<b>x</b> <script>steal()</script>", "<b>x</b>", "<script"},
+		{"strips img onerror", `<b>y</b> <img src=x onerror=e>`, "<b>y</b>", "onerror"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := r.SanitizeHeadline(tt.snippet)
+			if !strings.Contains(got, tt.mustHave) {
+				t.Errorf("SanitizeHeadline(%q) = %q, want it to contain %q", tt.snippet, got, tt.mustHave)
+			}
+			if tt.mustReject != "" && strings.Contains(got, tt.mustReject) {
+				t.Errorf("SanitizeHeadline(%q) = %q, must not contain %q", tt.snippet, got, tt.mustReject)
+			}
+		})
+	}
+}
+
 func TestReadingMinutes(t *testing.T) {
 	tests := []struct {
 		name  string

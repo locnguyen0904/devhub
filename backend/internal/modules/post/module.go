@@ -1,9 +1,13 @@
 package post
 
 import (
+	"context"
+	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/locnguyen0904/devhub/backend/internal/platform/cache"
 	"github.com/locnguyen0904/devhub/backend/internal/platform/database"
 )
 
@@ -16,13 +20,39 @@ const (
 // Module wires the post module.
 type Module struct {
 	handler *Handler
+	svc     Service
+	log     *slog.Logger
 }
 
 // New builds the module from its dependencies. users and tags arrive as the
-// consumer-defined ports, renderer as the markdown port.
-func New(db *database.DB, users authorFinder, tags tagLinker, renderer markdownRenderer) *Module {
-	svc := newService(db, newRepository(db), users, tags, renderer)
-	return &Module{handler: newHandler(svc)}
+// consumer-defined ports, renderer as the markdown port, cache for the hot feed.
+func New(db *database.DB, users authorFinder, tags tagLinker, renderer markdownRenderer, c *cache.Client, log *slog.Logger) *Module {
+	svc := newService(db, newRepository(db), users, tags, renderer, c, log)
+	return &Module{handler: newHandler(svc), svc: svc, log: log}
+}
+
+// RunViewFlusher periodically writes buffered views to Postgres until ctx is
+// cancelled, then does one final flush so the last window is not lost. Run it
+// in a goroutine; it blocks until shutdown.
+func (m *Module) RunViewFlusher(ctx context.Context) {
+	ticker := time.NewTicker(viewFlushInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			// context.WithoutCancel: the app context is already cancelled, but the
+			// final flush still needs to reach Redis and Postgres.
+			if err := m.svc.FlushViews(context.WithoutCancel(ctx)); err != nil {
+				m.log.Error("final view flush", slog.String("error", err.Error()))
+			}
+			return
+		case <-ticker.C:
+			if err := m.svc.FlushViews(ctx); err != nil {
+				m.log.ErrorContext(ctx, "view flush", slog.String("error", err.Error()))
+			}
+		}
+	}
 }
 
 // Register mounts the post operations. Public reads carry no security; writes
@@ -37,6 +67,23 @@ func (m *Module) Register(api huma.API) {
 		Summary:     "List published posts, newest first (cursor paginated)",
 		Tags:        []string{tagName},
 	}, m.handler.feed)
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "recordView",
+		Method:        http.MethodPost,
+		Path:          "/api/v1/posts/{id}/views",
+		Summary:       "Record a view (buffered, fire-and-forget)",
+		Tags:          []string{tagName},
+		DefaultStatus: http.StatusNoContent,
+	}, m.handler.recordView)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "searchPosts",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/search",
+		Summary:     "Full-text search over published posts",
+		Tags:        []string{tagName},
+	}, m.handler.search)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "getMyPosts",

@@ -12,6 +12,24 @@ import (
 	"github.com/google/uuid"
 )
 
+const addViewCounts = `-- name: AddViewCounts :exec
+UPDATE posts SET view_count = view_count + d.delta
+FROM (SELECT unnest($1::uuid[]) AS id, unnest($2::bigint[]) AS delta) d
+WHERE posts.id = d.id
+`
+
+type AddViewCountsParams struct {
+	Ids    []uuid.UUID
+	Deltas []int64
+}
+
+// Apply many buffered view deltas in one statement. Rows for posts that no
+// longer exist simply match nothing.
+func (q *Queries) AddViewCounts(ctx context.Context, arg AddViewCountsParams) error {
+	_, err := q.db.Exec(ctx, addViewCounts, arg.Ids, arg.Deltas)
+	return err
+}
+
 const createPostTx = `-- name: CreatePostTx :one
 INSERT INTO posts (
     id, author_id, slug, title, subtitle, body_markdown, body_html,
@@ -142,6 +160,132 @@ func (q *Queries) GetPublishedPostBySlug(ctx context.Context, arg GetPublishedPo
 		&i.SearchVector,
 	)
 	return i, err
+}
+
+const listFeedByTag = `-- name: ListFeedByTag :many
+SELECT p.id, p.author_id, p.slug, p.title, p.subtitle, p.body_markdown, p.body_html, p.cover_image_url, p.status, p.reading_minutes, p.canonical_url, p.comment_count, p.reaction_count, p.view_count, p.published_at, p.created_at, p.updated_at, p.deleted_at, p.search_vector FROM posts p
+JOIN post_tags pt ON pt.post_id = p.id
+JOIN tags t ON t.id = pt.tag_id
+WHERE t.name = $1 AND p.status = 'published' AND p.deleted_at IS NULL
+  AND ($2::bool = false OR (p.published_at, p.id) < ($3::timestamptz, $4::uuid))
+ORDER BY p.published_at DESC, p.id DESC
+LIMIT $5
+`
+
+type ListFeedByTagParams struct {
+	Tag       string
+	UseCursor bool
+	CursorAt  time.Time
+	CursorID  uuid.UUID
+	Lim       int32
+}
+
+type ListFeedByTagRow struct {
+	Post Post
+}
+
+func (q *Queries) ListFeedByTag(ctx context.Context, arg ListFeedByTagParams) ([]ListFeedByTagRow, error) {
+	rows, err := q.db.Query(ctx, listFeedByTag,
+		arg.Tag,
+		arg.UseCursor,
+		arg.CursorAt,
+		arg.CursorID,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListFeedByTagRow
+	for rows.Next() {
+		var i ListFeedByTagRow
+		if err := rows.Scan(
+			&i.Post.ID,
+			&i.Post.AuthorID,
+			&i.Post.Slug,
+			&i.Post.Title,
+			&i.Post.Subtitle,
+			&i.Post.BodyMarkdown,
+			&i.Post.BodyHtml,
+			&i.Post.CoverImageUrl,
+			&i.Post.Status,
+			&i.Post.ReadingMinutes,
+			&i.Post.CanonicalUrl,
+			&i.Post.CommentCount,
+			&i.Post.ReactionCount,
+			&i.Post.ViewCount,
+			&i.Post.PublishedAt,
+			&i.Post.CreatedAt,
+			&i.Post.UpdatedAt,
+			&i.Post.DeletedAt,
+			&i.Post.SearchVector,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listHotFeed = `-- name: ListHotFeed :many
+SELECT p.id, p.author_id, p.slug, p.title, p.subtitle, p.body_markdown, p.body_html, p.cover_image_url, p.status, p.reading_minutes, p.canonical_url, p.comment_count, p.reaction_count, p.view_count, p.published_at, p.created_at, p.updated_at, p.deleted_at, p.search_vector FROM posts p
+WHERE p.status = 'published' AND p.deleted_at IS NULL
+  AND p.published_at > now() - INTERVAL '7 days'
+ORDER BY (p.reaction_count + 2 * p.comment_count + 1)
+    / POWER(EXTRACT(EPOCH FROM (now() - p.published_at)) / 3600 + 2, 1.5) DESC
+LIMIT $1
+`
+
+type ListHotFeedRow struct {
+	Post Post
+}
+
+// Hacker News style ranking (docs/02-data-model.md §8): comments weigh 2x
+// reactions, and the age penalty pushes older posts down. Bounded to 7 days so
+// the scan stays small; the result is cached in Redis, so this runs rarely.
+// The score is only an ORDER BY key, never selected, to avoid a float-to-int
+// scan mismatch.
+func (q *Queries) ListHotFeed(ctx context.Context, lim int32) ([]ListHotFeedRow, error) {
+	rows, err := q.db.Query(ctx, listHotFeed, lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListHotFeedRow
+	for rows.Next() {
+		var i ListHotFeedRow
+		if err := rows.Scan(
+			&i.Post.ID,
+			&i.Post.AuthorID,
+			&i.Post.Slug,
+			&i.Post.Title,
+			&i.Post.Subtitle,
+			&i.Post.BodyMarkdown,
+			&i.Post.BodyHtml,
+			&i.Post.CoverImageUrl,
+			&i.Post.Status,
+			&i.Post.ReadingMinutes,
+			&i.Post.CanonicalUrl,
+			&i.Post.CommentCount,
+			&i.Post.ReactionCount,
+			&i.Post.ViewCount,
+			&i.Post.PublishedAt,
+			&i.Post.CreatedAt,
+			&i.Post.UpdatedAt,
+			&i.Post.DeletedAt,
+			&i.Post.SearchVector,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listMyPosts = `-- name: ListMyPosts :many
@@ -297,6 +441,70 @@ func (q *Queries) PublishPost(ctx context.Context, arg PublishPostParams) (Post,
 		&i.SearchVector,
 	)
 	return i, err
+}
+
+const searchPosts = `-- name: SearchPosts :many
+SELECT p.id, p.author_id, p.slug, p.title, p.subtitle, p.body_markdown, p.body_html, p.cover_image_url, p.status, p.reading_minutes, p.canonical_url, p.comment_count, p.reaction_count, p.view_count, p.published_at, p.created_at, p.updated_at, p.deleted_at, p.search_vector,
+    ts_headline('simple', p.body_markdown, query, 'MaxWords=30, MinWords=15, MaxFragments=1') AS headline
+FROM posts p, websearch_to_tsquery('simple', $1) query
+WHERE p.status = 'published' AND p.deleted_at IS NULL
+  AND p.search_vector @@ query
+ORDER BY ts_rank(p.search_vector, query) DESC
+LIMIT $2
+`
+
+type SearchPostsParams struct {
+	Q   string
+	Lim int32
+}
+
+type SearchPostsRow struct {
+	Post     Post
+	Headline []byte
+}
+
+// Full-text search over the generated search_vector. 'simple' config matches
+// how the vector is built (no English stemmer to mangle Vietnamese). The
+// headline is a snippet of the body with the matched terms marked.
+func (q *Queries) SearchPosts(ctx context.Context, arg SearchPostsParams) ([]SearchPostsRow, error) {
+	rows, err := q.db.Query(ctx, searchPosts, arg.Q, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchPostsRow
+	for rows.Next() {
+		var i SearchPostsRow
+		if err := rows.Scan(
+			&i.Post.ID,
+			&i.Post.AuthorID,
+			&i.Post.Slug,
+			&i.Post.Title,
+			&i.Post.Subtitle,
+			&i.Post.BodyMarkdown,
+			&i.Post.BodyHtml,
+			&i.Post.CoverImageUrl,
+			&i.Post.Status,
+			&i.Post.ReadingMinutes,
+			&i.Post.CanonicalUrl,
+			&i.Post.CommentCount,
+			&i.Post.ReactionCount,
+			&i.Post.ViewCount,
+			&i.Post.PublishedAt,
+			&i.Post.CreatedAt,
+			&i.Post.UpdatedAt,
+			&i.Post.DeletedAt,
+			&i.Post.SearchVector,
+			&i.Headline,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const slugExistsForAuthor = `-- name: SlugExistsForAuthor :one

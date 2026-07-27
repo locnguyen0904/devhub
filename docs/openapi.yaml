@@ -277,6 +277,28 @@ components:
         - status
         - checks
       type: object
+    SearchHitView:
+      additionalProperties: false
+      properties:
+        headline:
+          description: Snippet with matched terms wrapped in <b>
+          type: string
+        post:
+          $ref: "#/components/schemas/View"
+      required:
+        - post
+        - headline
+      type: object
+    SearchOutputBody:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/SearchHitView"
+          type: array
+      required:
+        - data
+      type: object
     SessionResponse:
       additionalProperties: false
       properties:
@@ -549,6 +571,23 @@ paths:
     get:
       operationId: listFeed
       parameters:
+        - description: latest (default) or hot
+          explode: false
+          in: query
+          name: sort
+          schema:
+            description: latest (default) or hot
+            enum:
+              - latest
+              - hot
+            type: string
+        - description: Filter latest by tag name
+          explode: false
+          in: query
+          name: tag
+          schema:
+            description: Filter latest by tag name
+            type: string
         - explode: false
           in: query
           name: cursor
@@ -771,6 +810,27 @@ paths:
       summary: Return a post to draft
       tags:
         - posts
+  /api/v1/posts/{id}/views:
+    post:
+      operationId: recordView
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Record a view (buffered, fire-and-forget)
+      tags:
+        - posts
   /api/v1/readyz:
     get:
       description: Returns 503 with code service_unavailable when a dependency does not answer.
@@ -791,6 +851,39 @@ paths:
       summary: Readiness probe
       tags:
         - health
+  /api/v1/search:
+    get:
+      operationId: searchPosts
+      parameters:
+        - description: Search text, at least 2 characters
+          explode: false
+          in: query
+          name: q
+          schema:
+            description: Search text, at least 2 characters
+            type: string
+        - explode: false
+          in: query
+          name: limit
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchOutputBody"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Full-text search over published posts
+      tags:
+        - posts
   /api/v1/tags:
     get:
       operationId: listTags

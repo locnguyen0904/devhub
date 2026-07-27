@@ -29,8 +29,9 @@ const wordsPerMinute = 200
 // is built once at startup because compiling the goldmark pipeline and the
 // bluemonday policy is not free.
 type Renderer struct {
-	md     goldmark.Markdown
-	policy *bluemonday.Policy
+	md       goldmark.Markdown
+	policy   *bluemonday.Policy
+	headline *bluemonday.Policy
 }
 
 // NewRenderer builds the renderer.
@@ -57,7 +58,11 @@ func NewRenderer() *Renderer {
 		),
 	)
 
-	return &Renderer{md: md, policy: buildPolicy()}
+	// headline allows only the <b> tags ts_headline wraps matches in.
+	headline := bluemonday.NewPolicy()
+	headline.AllowElements("b")
+
+	return &Renderer{md: md, policy: buildPolicy(), headline: headline}
 }
 
 // Render converts markdown to HTML that is safe to store and serve.
@@ -67,6 +72,14 @@ func (r *Renderer) Render(source string) (string, error) {
 		return "", fmt.Errorf("convert markdown: %w", err)
 	}
 	return r.policy.Sanitize(buf.String()), nil
+}
+
+// SanitizeHeadline makes a Postgres ts_headline snippet safe to render. The
+// snippet is built from raw post markdown, which may contain user HTML, so
+// everything but the <b> match markers is stripped — otherwise a post could
+// smuggle script into search results.
+func (r *Renderer) SanitizeHeadline(snippet string) string {
+	return r.headline.Sanitize(snippet)
 }
 
 // ReadingMinutes estimates reading time from the raw markdown, never below one.

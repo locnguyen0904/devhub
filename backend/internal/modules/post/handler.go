@@ -136,8 +136,25 @@ func (h *Handler) delete(ctx context.Context, in *IDInput) (*DeleteOutput, error
 	return out, nil
 }
 
+// recordView buffers a view. It is public and fire-and-forget: an invalid id
+// still returns 204 so a broken client cannot learn which posts exist, and a
+// buffer failure is swallowed because a missed view is not worth a user error.
+func (h *Handler) recordView(ctx context.Context, in *IDInput) (*struct{}, error) {
+	id, err := parsePostID(in.ID)
+	if err != nil {
+		return nil, httpx.ToHuma(err)
+	}
+	_ = h.svc.RecordView(ctx, id)
+	return nil, nil
+}
+
 func (h *Handler) feed(ctx context.Context, in *FeedInput) (*FeedOutput, error) {
-	posts, next, err := h.svc.Feed(ctx, in.Cursor, in.Limit)
+	posts, next, err := h.svc.Feed(ctx, FeedQuery{
+		Sort:   in.Sort,
+		Tag:    in.Tag,
+		Cursor: in.Cursor,
+		Limit:  in.Limit,
+	})
 	if err != nil {
 		return nil, httpx.ToHuma(err)
 	}
@@ -145,6 +162,22 @@ func (h *Handler) feed(ctx context.Context, in *FeedInput) (*FeedOutput, error) 
 	out.Body.Data = toCardViews(posts)
 	out.Body.Page.NextCursor = next
 	out.Body.Page.HasMore = next != ""
+	return out, nil
+}
+
+func (h *Handler) search(ctx context.Context, in *SearchInput) (*SearchOutput, error) {
+	results, err := h.svc.Search(ctx, in.Query, in.Limit)
+	if err != nil {
+		return nil, httpx.ToHuma(err)
+	}
+	out := &SearchOutput{}
+	out.Body.Data = make([]SearchHitView, 0, len(results))
+	for _, r := range results {
+		out.Body.Data = append(out.Body.Data, SearchHitView{
+			Post:     toCardView(r.WithMeta),
+			Headline: r.Headline,
+		})
+	}
 	return out, nil
 }
 

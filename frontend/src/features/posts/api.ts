@@ -16,6 +16,7 @@ import type {
   Post,
   PostFeed,
   PostList,
+  SearchResults,
   TagChip,
   UpdatePostBody,
 } from "@/shared/types";
@@ -23,15 +24,35 @@ import type {
 const FEED_KEY = ["feed"] as const;
 const MY_POSTS_KEY = ["my-posts"] as const;
 
-/** The published feed, one page per cursor, for infinite scroll. */
-export function useFeed() {
+export type FeedSort = "latest" | "hot";
+
+/**
+ * The published feed, paginated by cursor for infinite scroll. Hot returns a
+ * single page (its ranking has no stable cursor), so has_more is false and the
+ * scroll naturally stops. Tag filters the latest feed.
+ */
+export function useFeed(sort: FeedSort = "latest", tag?: string) {
   return useInfiniteQuery({
-    queryKey: FEED_KEY,
-    queryFn: ({ pageParam, signal }) =>
-      apiGet<PostFeed>(`/posts?limit=20&cursor=${pageParam}`, signal),
+    queryKey: [...FEED_KEY, sort, tag ?? ""],
+    queryFn: ({ pageParam, signal }) => {
+      const params = new URLSearchParams({ limit: "20", sort, cursor: pageParam });
+      if (tag) params.set("tag", tag);
+      return apiGet<PostFeed>(`/posts?${params.toString()}`, signal);
+    },
     initialPageParam: "",
     getNextPageParam: (last) =>
       last.page.has_more ? last.page.next_cursor : undefined,
+  });
+}
+
+/** Full-text search. Disabled until the query is at least 2 characters. */
+export function useSearch(query: string) {
+  const trimmed = query.trim();
+  return useQuery({
+    queryKey: ["search", trimmed],
+    queryFn: ({ signal }) =>
+      apiGet<SearchResults>(`/search?q=${encodeURIComponent(trimmed)}`, signal),
+    enabled: trimmed.length >= 2,
   });
 }
 
@@ -82,6 +103,14 @@ export function usePublishPost() {
       void queryClient.invalidateQueries({ queryKey: FEED_KEY });
       void queryClient.invalidateQueries({ queryKey: MY_POSTS_KEY });
     },
+  });
+}
+
+/** Records a view, fire-and-forget. Failures are ignored — a missed view count
+ * is not worth surfacing to the reader. */
+export function recordView(postId: string): void {
+  void apiPost(`/posts/${postId}/views`).catch(() => {
+    // intentionally ignored
   });
 }
 

@@ -1,4 +1,5 @@
-import { Link, Outlet } from "react-router-dom";
+import { useState } from "react";
+import { Link, Outlet, useNavigate } from "react-router-dom";
 
 import { AuthControls } from "@/features/auth/AuthControls";
 import { useSession } from "@/features/auth/api";
@@ -17,11 +18,13 @@ const loginFailed = new URLSearchParams(window.location.search).has("auth_error"
 export function App() {
   const { theme, cycle } = useTheme();
   const { user } = useSession();
+  const navigate = useNavigate();
+  const [search, setSearch] = useState("");
 
   return (
     <div className="min-h-screen">
       <header className="border-b border-border-subtle">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-6 py-4">
           <nav className="flex items-center gap-4">
             <Link to="/" className="text-lg font-semibold text-accent">
               DevHub
@@ -32,6 +35,24 @@ export function App() {
               </Link>
             )}
           </nav>
+          <form
+            className="hidden flex-1 sm:block"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (search.trim().length >= 2) {
+                void navigate(`/search?q=${encodeURIComponent(search.trim())}`);
+              }
+            }}
+          >
+            <input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+              }}
+              placeholder="Search posts…"
+              className="w-full rounded-[--radius-control] border border-border-strong bg-surface px-3 py-1.5 text-sm outline-none focus:border-accent"
+            />
+          </form>
           <div className="flex items-center gap-3">
             {user && (
               <Link

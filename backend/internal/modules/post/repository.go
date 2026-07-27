@@ -123,6 +123,57 @@ func (r *repository) feed(ctx context.Context, cursor *feedCursor, limit int32) 
 	return toDomains(rows), nil
 }
 
+func (r *repository) hotFeed(ctx context.Context, limit int32) ([]Post, error) {
+	rows, err := r.queries().ListHotFeed(ctx, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list hot feed: %w", err)
+	}
+	posts := make([]Post, 0, len(rows))
+	for _, row := range rows {
+		posts = append(posts, toDomain(row.Post))
+	}
+	return posts, nil
+}
+
+func (r *repository) feedByTag(ctx context.Context, tag string, cursor *feedCursor, limit int32) ([]Post, error) {
+	params := sqlcgen.ListFeedByTagParams{Tag: tag, Lim: limit}
+	if cursor != nil {
+		params.UseCursor = true
+		params.CursorAt = cursor.publishedAt
+		params.CursorID = cursor.id
+	}
+	rows, err := r.queries().ListFeedByTag(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("list feed by tag: %w", err)
+	}
+	posts := make([]Post, 0, len(rows))
+	for _, row := range rows {
+		posts = append(posts, toDomain(row.Post))
+	}
+	return posts, nil
+}
+
+// SearchHit is a matched post plus the highlighted snippet the search endpoint
+// shows under it.
+type SearchHit struct {
+	Post     Post
+	Headline string
+}
+
+func (r *repository) search(ctx context.Context, query string, limit int32) ([]SearchHit, error) {
+	rows, err := r.queries().SearchPosts(ctx, sqlcgen.SearchPostsParams{Q: query, Lim: limit})
+	if err != nil {
+		return nil, fmt.Errorf("search posts: %w", err)
+	}
+	hits := make([]SearchHit, 0, len(rows))
+	for _, row := range rows {
+		// The headline is sanitized in the service (it holds the renderer); here
+		// it is the raw ts_headline output.
+		hits = append(hits, SearchHit{Post: toDomain(row.Post), Headline: string(row.Headline)})
+	}
+	return hits, nil
+}
+
 func (r *repository) myPosts(ctx context.Context, authorID uuid.UUID, statusFilter string, limit int32) ([]Post, error) {
 	rows, err := r.queries().ListMyPosts(ctx, sqlcgen.ListMyPostsParams{
 		AuthorID:     authorID,
@@ -133,6 +184,14 @@ func (r *repository) myPosts(ctx context.Context, authorID uuid.UUID, statusFilt
 		return nil, fmt.Errorf("list my posts: %w", err)
 	}
 	return toDomains(rows), nil
+}
+
+func (r *repository) addViews(ctx context.Context, ids []uuid.UUID, deltas []int64) error {
+	err := r.queries().AddViewCounts(ctx, sqlcgen.AddViewCountsParams{Ids: ids, Deltas: deltas})
+	if err != nil {
+		return fmt.Errorf("add view counts: %w", err)
+	}
+	return nil
 }
 
 func toDomains(rows []sqlcgen.Post) []Post {

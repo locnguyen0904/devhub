@@ -1,7 +1,8 @@
+import { useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 
 import { tagClass } from "./tag-color";
-import { usePostBySlug } from "./api";
+import { recordView, usePostBySlug } from "./api";
 
 /** Public reading page for a published post, rendered from the sanitized HTML
  * the backend produced. */
@@ -11,6 +12,16 @@ export function PostDetailPage() {
   const username = (params.username ?? "").replace(/^@/, "");
   const slug = params.slug ?? "";
   const { data: post, isPending, error } = usePostBySlug(username, slug);
+
+  // Record one view per post once it loads. The ref guards against firing twice
+  // for the same post (including React StrictMode's double effect invocation).
+  const viewedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (post && viewedRef.current !== post.id) {
+      viewedRef.current = post.id;
+      recordView(post.id);
+    }
+  }, [post]);
 
   if (isPending) {
     return <div className="h-96 rounded-[--radius-card] bg-surface-raised" aria-busy />;

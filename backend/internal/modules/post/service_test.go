@@ -48,9 +48,22 @@ func (f *fakeStore) feed(context.Context, *feedCursor, int32) ([]Post, error) {
 	return []Post{f.post}, nil
 }
 
+func (f *fakeStore) feedByTag(context.Context, string, *feedCursor, int32) ([]Post, error) {
+	return []Post{f.post}, nil
+}
+
+func (f *fakeStore) hotFeed(context.Context, int32) ([]Post, error) {
+	return []Post{f.post}, nil
+}
+
+func (f *fakeStore) search(context.Context, string, int32) ([]SearchHit, error) {
+	return []SearchHit{{Post: f.post, Headline: "…snippet…"}}, nil
+}
+
 func (f *fakeStore) myPosts(context.Context, uuid.UUID, string, int32) ([]Post, error) {
 	return []Post{f.post}, nil
 }
+func (f *fakeStore) addViews(context.Context, []uuid.UUID, []int64) error { return nil }
 
 type stubUsers struct{}
 

@@ -2,13 +2,17 @@ package post
 
 import (
 	"context"
+	"encoding/json"
+	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gosimple/slug"
 	"github.com/jackc/pgx/v5"
 	"github.com/locnguyen0904/devhub/backend/internal/modules/tag"
 	"github.com/locnguyen0904/devhub/backend/internal/modules/user"
+	"github.com/locnguyen0904/devhub/backend/internal/platform/cache"
 	"github.com/locnguyen0904/devhub/backend/internal/platform/database"
 	"github.com/locnguyen0904/devhub/backend/internal/platform/database/sqlcgen"
 	"github.com/locnguyen0904/devhub/backend/internal/platform/httpx"
@@ -16,10 +20,25 @@ import (
 	"github.com/locnguyen0904/devhub/backend/internal/platform/random"
 )
 
+// Feed orderings accepted by FeedQuery.Sort.
+const (
+	SortLatest = "latest"
+	SortHot    = "hot"
+)
+
 const (
 	defaultFeedLimit = 20
 	maxFeedLimit     = 50
 	slugRetries      = 5
+
+	hotCacheKey = "feed:hot"
+	hotCacheTTL = 5 * time.Minute
+	minQueryLen = 2
+
+	// viewsKey is the Redis hash buffering pending view increments per post id.
+	viewsKey = "post:views"
+	// viewFlushInterval is how often buffered views are written to Postgres.
+	viewFlushInterval = 60 * time.Second
 )
 
 // WithMeta is a post enriched with its author and tags, ready for a response.
@@ -41,7 +60,11 @@ type postStore interface {
 	unpublish(ctx context.Context, id, authorID uuid.UUID) (Post, error)
 	softDelete(ctx context.Context, id, authorID uuid.UUID) error
 	feed(ctx context.Context, cursor *feedCursor, limit int32) ([]Post, error)
+	feedByTag(ctx context.Context, tag string, cursor *feedCursor, limit int32) ([]Post, error)
+	hotFeed(ctx context.Context, limit int32) ([]Post, error)
+	search(ctx context.Context, query string, limit int32) ([]SearchHit, error)
 	myPosts(ctx context.Context, authorID uuid.UUID, statusFilter string, limit int32) ([]Post, error)
+	addViews(ctx context.Context, ids []uuid.UUID, deltas []int64) error
 }
 
 // Service is the post API.
@@ -53,8 +76,27 @@ type Service interface {
 	Delete(ctx context.Context, actorID, postID uuid.UUID) error
 	GetByID(ctx context.Context, postID uuid.UUID) (WithMeta, error)
 	GetBySlug(ctx context.Context, username, slug string) (WithMeta, error)
-	Feed(ctx context.Context, rawCursor string, limit int) ([]WithMeta, string, error)
+	Feed(ctx context.Context, q FeedQuery) ([]WithMeta, string, error)
+	Search(ctx context.Context, query string, limit int) ([]SearchResult, error)
 	MyPosts(ctx context.Context, actorID uuid.UUID, statusFilter string, limit int) ([]WithMeta, error)
+	// RecordView buffers one view in Redis; the flusher writes it to Postgres.
+	RecordView(ctx context.Context, postID uuid.UUID) error
+	// FlushViews drains the buffered views into Postgres. Called on a timer.
+	FlushViews(ctx context.Context) error
+}
+
+// FeedQuery selects and pages the feed.
+type FeedQuery struct {
+	Sort   string // "latest" (default) or "hot"
+	Tag    string // optional; filters latest by tag
+	Cursor string
+	Limit  int
+}
+
+// SearchResult is a matched post with its highlighted snippet.
+type SearchResult struct {
+	WithMeta
+	Headline string
 }
 
 type service struct {
@@ -63,10 +105,12 @@ type service struct {
 	users    authorFinder
 	tags     tagLinker
 	renderer markdownRenderer
+	cache    *cache.Client
+	log      *slog.Logger
 }
 
-func newService(db *database.DB, repo postStore, users authorFinder, tags tagLinker, renderer markdownRenderer) *service {
-	return &service{db: db, repo: repo, users: users, tags: tags, renderer: renderer}
+func newService(db *database.DB, repo postStore, users authorFinder, tags tagLinker, renderer markdownRenderer, c *cache.Client, log *slog.Logger) *service {
+	return &service{db: db, repo: repo, users: users, tags: tags, renderer: renderer, cache: c, log: log}
 }
 
 func (s *service) Create(ctx context.Context, actorID uuid.UUID, p CreateParams) (WithMeta, error) {
@@ -197,13 +241,46 @@ func (s *service) GetBySlug(ctx context.Context, username, slugValue string) (Wi
 	return s.enrichOne(ctx, p)
 }
 
-func (s *service) Feed(ctx context.Context, rawCursor string, limit int) ([]WithMeta, string, error) {
+// Feed serves the latest or hot feed, optionally filtered by tag.
+func (s *service) Feed(ctx context.Context, q FeedQuery) ([]WithMeta, string, error) {
+	if q.Sort == SortHot {
+		return s.hotFeed(ctx, clampFeedLimit(q.Limit))
+	}
+	return s.latestFeed(ctx, q.Tag, q.Cursor, clampFeedLimit(q.Limit))
+}
+
+// hotFeed returns the ranked feed, cached in Redis so the ranking scan runs at
+// most once per TTL. Hot is a single page — the score changes with time, so a
+// stable cursor is not meaningful.
+func (s *service) hotFeed(ctx context.Context, limit int32) ([]WithMeta, string, error) {
+	if cached, ok := s.readHotCache(ctx); ok {
+		return cached, "", nil
+	}
+
+	posts, err := s.repo.hotFeed(ctx, limit)
+	if err != nil {
+		return nil, "", err
+	}
+	enriched, err := s.enrich(ctx, posts)
+	if err != nil {
+		return nil, "", err
+	}
+	s.writeHotCache(ctx, enriched)
+	return enriched, "", nil
+}
+
+func (s *service) latestFeed(ctx context.Context, tagName, rawCursor string, limit int32) ([]WithMeta, string, error) {
 	cursor, err := decodeCursor(rawCursor)
 	if err != nil {
 		return nil, "", err
 	}
 
-	posts, err := s.repo.feed(ctx, cursor, clampFeedLimit(limit))
+	var posts []Post
+	if tagName != "" {
+		posts, err = s.repo.feedByTag(ctx, tagName, cursor, limit)
+	} else {
+		posts, err = s.repo.feed(ctx, cursor, limit)
+	}
 	if err != nil {
 		return nil, "", err
 	}
@@ -216,13 +293,111 @@ func (s *service) Feed(ctx context.Context, rawCursor string, limit int) ([]With
 	// The next cursor points at the last row returned; empty when the page did
 	// not fill, signalling the end of the feed.
 	var next string
-	if int32(len(posts)) == clampFeedLimit(limit) {
+	if int32(len(posts)) == limit {
 		last := posts[len(posts)-1]
 		if last.PublishedAt != nil {
 			next = encodeCursor(feedCursor{publishedAt: *last.PublishedAt, id: last.ID})
 		}
 	}
 	return enriched, next, nil
+}
+
+// Search runs a full-text query and returns matches with highlighted snippets.
+func (s *service) Search(ctx context.Context, query string, limit int) ([]SearchResult, error) {
+	query = strings.TrimSpace(query)
+	if len(query) < minQueryLen {
+		return nil, httpx.Invalid("Query too short", map[string]string{"q": "must be at least 2 characters"})
+	}
+
+	hits, err := s.repo.search(ctx, query, clampFeedLimit(limit))
+	if err != nil {
+		return nil, err
+	}
+	if len(hits) == 0 {
+		return []SearchResult{}, nil
+	}
+
+	posts := make([]Post, 0, len(hits))
+	for _, h := range hits {
+		posts = append(posts, h.Post)
+	}
+	enriched, err := s.enrich(ctx, posts)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]SearchResult, 0, len(enriched))
+	for i, m := range enriched {
+		// Sanitize the snippet here: it comes from raw markdown, so only the <b>
+		// match markers are safe to render.
+		results = append(results, SearchResult{
+			WithMeta: m,
+			Headline: s.renderer.SanitizeHeadline(hits[i].Headline),
+		})
+	}
+	return results, nil
+}
+
+// RecordView buffers a view in Redis rather than writing to Postgres per hit,
+// so a popular post does not hammer the database. It is fire-and-forget from
+// the client's side.
+func (s *service) RecordView(ctx context.Context, postID uuid.UUID) error {
+	return s.cache.HIncrBy(ctx, viewsKey, postID.String(), 1)
+}
+
+// FlushViews drains the buffered view counts and applies them in one UPDATE.
+// A drain-then-apply crash loses that window's views, which the counter's
+// tolerance allows.
+func (s *service) FlushViews(ctx context.Context) error {
+	drained, err := s.cache.DrainHash(ctx, viewsKey)
+	if err != nil {
+		return err
+	}
+	if len(drained) == 0 {
+		return nil
+	}
+
+	ids := make([]uuid.UUID, 0, len(drained))
+	deltas := make([]int64, 0, len(drained))
+	for field, n := range drained {
+		id, perr := uuid.Parse(field)
+		if perr != nil {
+			continue
+		}
+		ids = append(ids, id)
+		deltas = append(deltas, n)
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	return s.repo.addViews(ctx, ids, deltas)
+}
+
+// readHotCache returns the cached hot feed, or ok=false to recompute. A cache
+// read failure is treated as a miss so the feed degrades to a live query rather
+// than an error.
+func (s *service) readHotCache(ctx context.Context) ([]WithMeta, bool) {
+	raw, found, err := s.cache.Get(ctx, hotCacheKey)
+	if err != nil || !found {
+		return nil, false
+	}
+	var cached []WithMeta
+	if err := json.Unmarshal([]byte(raw), &cached); err != nil {
+		return nil, false
+	}
+	return cached, true
+}
+
+func (s *service) writeHotCache(ctx context.Context, feed []WithMeta) {
+	raw, err := json.Marshal(feed)
+	if err != nil {
+		return
+	}
+	if err := s.cache.Set(ctx, hotCacheKey, string(raw), hotCacheTTL); err != nil {
+		// A cache write failure must not fail the request; the next reader just
+		// recomputes. Log it so a broken Redis is visible.
+		s.log.WarnContext(ctx, "write hot feed cache", slog.String("error", err.Error()))
+	}
 }
 
 func (s *service) MyPosts(ctx context.Context, actorID uuid.UUID, statusFilter string, limit int) ([]WithMeta, error) {

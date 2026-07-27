@@ -91,8 +91,29 @@ type SlugInput struct {
 
 // FeedInput is the cursor-paginated feed query.
 type FeedInput struct {
+	Sort   string `query:"sort" enum:"latest,hot" doc:"latest (default) or hot"`
+	Tag    string `query:"tag" doc:"Filter latest by tag name"`
 	Cursor string `query:"cursor"`
 	Limit  int    `query:"limit" doc:"Page size (default 20, max 50)"`
+}
+
+// SearchInput is the full-text search query.
+type SearchInput struct {
+	Query string `query:"q" doc:"Search text, at least 2 characters"`
+	Limit int    `query:"limit"`
+}
+
+// SearchOutput is the list of matches, each with a highlighted snippet.
+type SearchOutput struct {
+	Body struct {
+		Data []SearchHitView `json:"data" nullable:"false"`
+	}
+}
+
+// SearchHitView is one search result: the post card plus its snippet.
+type SearchHitView struct {
+	Post     View   `json:"post"`
+	Headline string `json:"headline" doc:"Snippet with matched terms wrapped in <b>"`
 }
 
 // FeedOutput is a page of the feed with its next cursor.

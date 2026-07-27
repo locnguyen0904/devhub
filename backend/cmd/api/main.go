@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/locnguyen0904/devhub/backend/internal/config"
@@ -55,7 +56,7 @@ func run() error {
 		}
 	}()
 
-	router, api := server.NewAPI(cfg, log, db, redis)
+	router, api, background := server.NewAPI(cfg, log, db, redis)
 
 	if len(os.Args) > 1 && os.Args[1] == "openapi" {
 		spec, merr := api.OpenAPI().YAML()
@@ -66,5 +67,16 @@ func run() error {
 		return nil
 	}
 
-	return server.New(log, router, cfg.Port).Run(ctx, cfg.ShutdownTimeout)
+	// Background workers run alongside the server. The WaitGroup ensures their
+	// shutdown cleanup (a final view flush) finishes before the process exits.
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		background(ctx)
+	}()
+
+	err = server.New(log, router, cfg.Port).Run(ctx, cfg.ShutdownTimeout)
+	wg.Wait()
+	return err
 }

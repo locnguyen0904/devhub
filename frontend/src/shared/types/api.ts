@@ -177,6 +177,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/posts/{id}/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record a view (buffered, fire-and-forget) */
+        post: operations["recordView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/readyz": {
         parameters: {
             query?: never;
@@ -189,6 +206,23 @@ export interface paths {
          * @description Returns 503 with code service_unavailable when a dependency does not answer.
          */
         get: operations["getReadiness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Full-text search over published posts */
+        get: operations["searchPosts"];
         put?: never;
         post?: never;
         delete?: never;
@@ -355,6 +389,14 @@ export interface components {
              * @example ok
              */
             status: string;
+        };
+        SearchHitView: {
+            /** @description Snippet with matched terms wrapped in <b> */
+            headline: string;
+            post: components["schemas"]["View"];
+        };
+        SearchOutputBody: {
+            data: components["schemas"]["SearchHitView"][];
         };
         SessionResponse: {
             /** @description Short-lived bearer token, kept in memory by the client */
@@ -576,6 +618,10 @@ export interface operations {
     listFeed: {
         parameters: {
             query?: {
+                /** @description latest (default) or hot */
+                sort?: "latest" | "hot";
+                /** @description Filter latest by tag name */
+                tag?: string;
                 cursor?: string;
                 /** @description Page size (default 20, max 50) */
                 limit?: number;
@@ -830,6 +876,35 @@ export interface operations {
             };
         };
     };
+    recordView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     getReadiness: {
         parameters: {
             query?: never;
@@ -846,6 +921,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReadyOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    searchPosts: {
+        parameters: {
+            query?: {
+                /** @description Search text, at least 2 characters */
+                q?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchOutputBody"];
                 };
             };
             /** @description Error */

@@ -11,6 +11,8 @@ import { RequireAuth } from "@/app/RequireAuth";
 import { FeedPage } from "@/features/posts/FeedPage";
 import { MyPostsPage } from "@/features/posts/MyPostsPage";
 import { PostDetailPage } from "@/features/posts/PostDetailPage";
+import { SearchPage } from "@/features/posts/SearchPage";
+import { TagPage } from "@/features/posts/TagPage";
 
 import "./app/theme.css";
 
@@ -36,6 +38,8 @@ createRoot(root).render(
         <Routes>
           <Route path="/" element={<App />}>
             <Route index element={<FeedPage />} />
+            <Route path="search" element={<SearchPage />} />
+            <Route path="tags/:name" element={<TagPage />} />
             <Route
               path="new"
               element={

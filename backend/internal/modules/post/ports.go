@@ -26,4 +26,7 @@ type tagLinker interface {
 // service depends on the behaviour, not the concrete platform package.
 type markdownRenderer interface {
 	Render(source string) (string, error)
+	// SanitizeHeadline strips everything but <b> from a search snippet, which is
+	// built from raw markdown and could otherwise carry script.
+	SanitizeHeadline(snippet string) string
 }

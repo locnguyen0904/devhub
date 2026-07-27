@@ -46,8 +46,13 @@ export function PostCard({ post }: PostCardProps) {
         {post.tags.length > 0 && (
           <ul className="mt-3 flex flex-wrap gap-2">
             {post.tags.map((t) => (
-              <li key={t.name} className={`rounded-[--radius-tag] px-2 py-0.5 text-xs ${tagClass(t.name, t.color_key)}`}>
-                #{t.name}
+              <li key={t.name}>
+                <Link
+                  to={`/tags/${t.name}`}
+                  className={`inline-block rounded-[--radius-tag] px-2 py-0.5 text-xs ${tagClass(t.name, t.color_key)}`}
+                >
+                  #{t.name}
+                </Link>
               </li>
             ))}
           </ul>
