@@ -123,6 +123,54 @@ func (q *Queries) GetPostByID(ctx context.Context, id uuid.UUID) (Post, error) {
 	return i, err
 }
 
+const getPostsByIDs = `-- name: GetPostsByIDs :many
+SELECT id, author_id, slug, title, subtitle, body_markdown, body_html, cover_image_url, status, reading_minutes, canonical_url, comment_count, reaction_count, view_count, published_at, created_at, updated_at, deleted_at, search_vector FROM posts
+WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL
+ORDER BY array_position($1::uuid[], id)
+`
+
+// Loads posts for a set of ids, preserving the order the ids were given so the
+// bookmark list stays in most-recently-saved order.
+func (q *Queries) GetPostsByIDs(ctx context.Context, ids []uuid.UUID) ([]Post, error) {
+	rows, err := q.db.Query(ctx, getPostsByIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Post
+	for rows.Next() {
+		var i Post
+		if err := rows.Scan(
+			&i.ID,
+			&i.AuthorID,
+			&i.Slug,
+			&i.Title,
+			&i.Subtitle,
+			&i.BodyMarkdown,
+			&i.BodyHtml,
+			&i.CoverImageUrl,
+			&i.Status,
+			&i.ReadingMinutes,
+			&i.CanonicalUrl,
+			&i.CommentCount,
+			&i.ReactionCount,
+			&i.ViewCount,
+			&i.PublishedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.SearchVector,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getPublishedPostBySlug = `-- name: GetPublishedPostBySlug :one
 SELECT p.id, p.author_id, p.slug, p.title, p.subtitle, p.body_markdown, p.body_html, p.cover_image_url, p.status, p.reading_minutes, p.canonical_url, p.comment_count, p.reaction_count, p.view_count, p.published_at, p.created_at, p.updated_at, p.deleted_at, p.search_vector FROM posts p
 JOIN users u ON u.id = p.author_id

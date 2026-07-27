@@ -30,3 +30,12 @@ type markdownRenderer interface {
 	// built from raw markdown and could otherwise carry script.
 	SanitizeHeadline(snippet string) string
 }
+
+// engagement is what post needs from the reaction module: a viewer's own
+// reactions/bookmark on a post, and the ids of posts they saved. The dependency
+// runs one way (post -> reaction); reaction never calls back into post, so there
+// is no cycle.
+type engagement interface {
+	ViewerState(ctx context.Context, userID, postID uuid.UUID) (reacted []string, bookmarked bool, err error)
+	BookmarkedPostIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
+}

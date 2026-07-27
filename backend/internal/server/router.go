@@ -14,8 +14,10 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/locnguyen0904/devhub/backend/internal/config"
 	"github.com/locnguyen0904/devhub/backend/internal/modules/auth"
+	"github.com/locnguyen0904/devhub/backend/internal/modules/comment"
 	"github.com/locnguyen0904/devhub/backend/internal/modules/health"
 	"github.com/locnguyen0904/devhub/backend/internal/modules/post"
+	"github.com/locnguyen0904/devhub/backend/internal/modules/reaction"
 	"github.com/locnguyen0904/devhub/backend/internal/modules/tag"
 	"github.com/locnguyen0904/devhub/backend/internal/modules/upload"
 	"github.com/locnguyen0904/devhub/backend/internal/modules/user"
@@ -42,10 +44,15 @@ func NewAPI(cfg config.Config, log *slog.Logger, db *database.DB, redis *cache.C
 	httpx.UseErrorModel()
 
 	// Modules are built first so their middleware can join the chain below.
+	renderer := markdown.NewRenderer()
 	userMod := user.New(db)
 	authMod := auth.New(cfg, db, redis, userMod.Service, log)
 	tagMod := tag.New(db)
-	postMod := post.New(db, userMod.Service, tagMod.Service, markdown.NewRenderer(), redis, log)
+	reactionMod := reaction.New(db)
+	// post consumes reaction for viewer state and the bookmark list. The
+	// dependency is one-way, so reaction is built first.
+	postMod := post.New(db, userMod.Service, tagMod.Service, renderer, reactionMod.Service, redis, log)
+	commentMod := comment.New(db, userMod.Service, renderer)
 	uploadMod := upload.NewModule(storage.New(storage.Config{
 		Endpoint:  cfg.Storage.Endpoint,
 		Region:    cfg.Storage.Region,
@@ -97,6 +104,8 @@ func NewAPI(cfg config.Config, log *slog.Logger, db *database.DB, redis *cache.C
 	authMod.Register(r, api)
 	tagMod.Register(api)
 	postMod.Register(api)
+	commentMod.Register(api)
+	reactionMod.Register(api)
 	uploadMod.Register(api)
 
 	// Periodic workers. Started by main after the openapi subcommand check, so

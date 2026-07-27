@@ -51,6 +51,59 @@ components:
       required:
         - name
       type: object
+    CommentAuthor:
+      additionalProperties: false
+      properties:
+        avatar_url:
+          type: string
+        display_name:
+          type: string
+        username:
+          type: string
+      required:
+        - username
+        - display_name
+      type: object
+    CommentTreeOutputBody:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/CommentView"
+          type: array
+      required:
+        - data
+      type: object
+    CommentView:
+      additionalProperties: false
+      properties:
+        author:
+          $ref: "#/components/schemas/CommentAuthor"
+        body_html:
+          type:
+            - string
+            - "null"
+        created_at:
+          type: string
+        deleted:
+          type: boolean
+        id:
+          type: string
+        replies:
+          items:
+            $ref: "#/components/schemas/CommentView"
+          type: array
+        updated_at:
+          type: string
+      required:
+        - id
+        - body_html
+        - author
+        - deleted
+        - created_at
+        - updated_at
+        - replies
+      type: object
     Cookie:
       additionalProperties: false
       properties:
@@ -105,6 +158,19 @@ components:
         - Raw
         - Unparsed
       type: object
+    CreateCommentInputBody:
+      additionalProperties: false
+      properties:
+        body_markdown:
+          maxLength: 5000
+          minLength: 1
+          type: string
+        parent_id:
+          description: Reply target; omit for a top-level comment
+          type: string
+      required:
+        - body_markdown
+      type: object
     CreateInputBody:
       additionalProperties: false
       properties:
@@ -132,6 +198,16 @@ components:
       required:
         - title
         - body_markdown
+      type: object
+    DeleteCommentOutputBody:
+      additionalProperties: false
+      properties:
+        status:
+          examples:
+            - ok
+          type: string
+      required:
+        - status
       type: object
     DeleteOutputBody:
       additionalProperties: false
@@ -260,6 +336,20 @@ components:
         - public_url
         - expires_in
       type: object
+    ReactionStateOutputBody:
+      additionalProperties: false
+      properties:
+        reaction_count:
+          format: int64
+          type: integer
+        viewer_reacted:
+          items:
+            type: string
+          type: array
+      required:
+        - reaction_count
+        - viewer_reacted
+      type: object
     ReadyOutputBody:
       additionalProperties: false
       properties:
@@ -348,6 +438,16 @@ components:
       required:
         - name
       type: object
+    UpdateCommentInputBody:
+      additionalProperties: false
+      properties:
+        body_markdown:
+          maxLength: 5000
+          minLength: 1
+          type: string
+      required:
+        - body_markdown
+      type: object
     UpdateInputBody:
       additionalProperties: false
       properties:
@@ -417,6 +517,8 @@ components:
           type: string
         url:
           type: string
+        viewer_state:
+          $ref: "#/components/schemas/ViewerStateView"
       required:
         - id
         - slug
@@ -428,6 +530,19 @@ components:
         - author
         - stats
         - updated_at
+      type: object
+    ViewerStateView:
+      additionalProperties: false
+      properties:
+        bookmarked:
+          type: boolean
+        reacted:
+          items:
+            type: string
+          type: array
+      required:
+        - reacted
+        - bookmarked
       type: object
   securitySchemes:
     bearer:
@@ -513,6 +628,65 @@ paths:
       summary: Exchange the refresh cookie for a new access token
       tags:
         - auth
+  /api/v1/comments/{id}:
+    delete:
+      operationId: deleteComment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteCommentOutputBody"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearer: []
+      summary: Delete a comment you authored
+      tags:
+        - comments
+    patch:
+      operationId: updateComment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCommentInputBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentView"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearer: []
+      summary: Edit a comment within 30 minutes of posting
+      tags:
+        - comments
   /api/v1/healthz:
     get:
       operationId: getLiveness
@@ -532,6 +706,27 @@ paths:
       summary: Liveness probe
       tags:
         - health
+  /api/v1/me/bookmarks:
+    get:
+      operationId: getBookmarks
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CardListOutputBody"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearer: []
+      summary: List the posts the current user saved
+      tags:
+        - posts
   /api/v1/me/posts:
     get:
       operationId: getMyPosts
@@ -756,6 +951,108 @@ paths:
       summary: Update a post you authored
       tags:
         - posts
+  /api/v1/posts/{id}/bookmark:
+    delete:
+      operationId: removeBookmark
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearer: []
+      summary: Unsave a post
+      tags:
+        - reactions
+    put:
+      operationId: addBookmark
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearer: []
+      summary: Save a post
+      tags:
+        - reactions
+  /api/v1/posts/{id}/comments:
+    get:
+      operationId: getComments
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentTreeOutputBody"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: Get a post's comment tree
+      tags:
+        - comments
+    post:
+      operationId: createComment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCommentInputBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentView"
+          description: Created
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearer: []
+      summary: Comment on a post, or reply to a comment
+      tags:
+        - comments
   /api/v1/posts/{id}/publish:
     post:
       operationId: publishPost
@@ -783,6 +1080,69 @@ paths:
       summary: Publish a draft
       tags:
         - posts
+  /api/v1/posts/{id}/reactions/{kind}:
+    delete:
+      operationId: removeReaction
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: kind
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReactionStateOutputBody"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearer: []
+      summary: Remove your reaction (idempotent)
+      tags:
+        - reactions
+    put:
+      operationId: addReaction
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: kind
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReactionStateOutputBody"
+          description: OK
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - bearer: []
+      summary: React to a post (idempotent)
+      tags:
+        - reactions
   /api/v1/posts/{id}/unpublish:
     post:
       operationId: unpublishPost

@@ -174,6 +174,14 @@ func (r *repository) search(ctx context.Context, query string, limit int32) ([]S
 	return hits, nil
 }
 
+func (r *repository) byIDs(ctx context.Context, ids []uuid.UUID) ([]Post, error) {
+	rows, err := r.queries().GetPostsByIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("get posts by ids: %w", err)
+	}
+	return toDomains(rows), nil
+}
+
 func (r *repository) myPosts(ctx context.Context, authorID uuid.UUID, statusFilter string, limit int32) ([]Post, error) {
 	rows, err := r.queries().ListMyPosts(ctx, sqlcgen.ListMyPostsParams{
 		AuthorID:     authorID,

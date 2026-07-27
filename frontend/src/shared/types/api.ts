@@ -55,6 +55,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/comments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a comment you authored */
+        delete: operations["deleteComment"];
+        options?: never;
+        head?: never;
+        /** Edit a comment within 30 minutes of posting */
+        patch: operations["updateComment"];
+        trace?: never;
+    };
     "/api/v1/healthz": {
         parameters: {
             query?: never;
@@ -64,6 +82,23 @@ export interface paths {
         };
         /** Liveness probe */
         get: operations["getLiveness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/bookmarks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the posts the current user saved */
+        get: operations["getBookmarks"];
         put?: never;
         post?: never;
         delete?: never;
@@ -143,6 +178,42 @@ export interface paths {
         patch: operations["updatePost"];
         trace?: never;
     };
+    "/api/v1/posts/{id}/bookmark": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save a post */
+        put: operations["addBookmark"];
+        post?: never;
+        /** Unsave a post */
+        delete: operations["removeBookmark"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/posts/{id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a post's comment tree */
+        get: operations["getComments"];
+        put?: never;
+        /** Comment on a post, or reply to a comment */
+        post: operations["createComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/posts/{id}/publish": {
         parameters: {
             query?: never;
@@ -155,6 +226,24 @@ export interface paths {
         /** Publish a draft */
         post: operations["publishPost"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/posts/{id}/reactions/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** React to a post (idempotent) */
+        put: operations["addReaction"];
+        post?: never;
+        /** Remove your reaction (idempotent) */
+        delete: operations["removeReaction"];
         options?: never;
         head?: never;
         patch?: never;
@@ -292,6 +381,23 @@ export interface components {
             /** @example go */
             name: string;
         };
+        CommentAuthor: {
+            avatar_url?: string;
+            display_name: string;
+            username: string;
+        };
+        CommentTreeOutputBody: {
+            data: components["schemas"]["CommentView"][];
+        };
+        CommentView: {
+            author: components["schemas"]["CommentAuthor"];
+            body_html: string | null;
+            created_at: string;
+            deleted: boolean;
+            id: string;
+            replies: components["schemas"]["CommentView"][];
+            updated_at: string;
+        };
         Cookie: {
             Domain: string;
             /** Format: date-time */
@@ -311,6 +417,11 @@ export interface components {
             Unparsed: string[] | null;
             Value: string;
         };
+        CreateCommentInputBody: {
+            body_markdown: string;
+            /** @description Reply target; omit for a top-level comment */
+            parent_id?: string;
+        };
         CreateInputBody: {
             body_markdown: string;
             canonical_url?: string;
@@ -318,6 +429,10 @@ export interface components {
             subtitle?: string;
             tags?: string[] | null;
             title: string;
+        };
+        DeleteCommentOutputBody: {
+            /** @example ok */
+            status: string;
         };
         DeleteOutputBody: {
             /** @example ok */
@@ -381,6 +496,11 @@ export interface components {
             /** @description PUT the file here with the same Content-Type */
             upload_url: string;
         };
+        ReactionStateOutputBody: {
+            /** Format: int64 */
+            reaction_count: number;
+            viewer_reacted: string[];
+        };
         ReadyOutputBody: {
             /** @description Per-dependency probe results */
             checks: components["schemas"]["CheckDTO"][];
@@ -422,6 +542,9 @@ export interface components {
             color_key?: string;
             name: string;
         };
+        UpdateCommentInputBody: {
+            body_markdown: string;
+        };
         UpdateInputBody: {
             body_markdown?: string;
             cover_image_url?: string;
@@ -452,6 +575,11 @@ export interface components {
             title: string;
             updated_at: string;
             url: string;
+            viewer_state?: components["schemas"]["ViewerStateView"];
+        };
+        ViewerStateView: {
+            bookmarked: boolean;
+            reacted: string[];
         };
     };
     responses: never;
@@ -553,6 +681,72 @@ export interface operations {
             };
         };
     };
+    deleteComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteCommentOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    updateComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCommentInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     getLiveness: {
         parameters: {
             query?: never;
@@ -569,6 +763,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LiveOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    getBookmarks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardListOutputBody"];
                 };
             };
             /** @description Error */
@@ -814,6 +1037,130 @@ export interface operations {
             };
         };
     };
+    addBookmark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    removeBookmark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    getComments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentTreeOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    createComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCommentInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentView"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     publishPost: {
         parameters: {
             query?: never;
@@ -832,6 +1179,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["View"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    addReaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactionStateOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    removeReaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactionStateOutputBody"];
                 };
             };
             /** @description Error */

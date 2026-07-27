@@ -64,6 +64,9 @@ func (f *fakeStore) myPosts(context.Context, uuid.UUID, string, int32) ([]Post, 
 	return []Post{f.post}, nil
 }
 func (f *fakeStore) addViews(context.Context, []uuid.UUID, []int64) error { return nil }
+func (f *fakeStore) byIDs(context.Context, []uuid.UUID) ([]Post, error) {
+	return []Post{f.post}, nil
+}
 
 type stubUsers struct{}
 

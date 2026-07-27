@@ -24,22 +24,30 @@ type StatsView struct {
 // View is the full post payload. The feed replaces body_html with an
 // excerpt (see toCardView) to keep list responses small.
 type View struct {
-	ID             string     `json:"id"`
-	Slug           string     `json:"slug"`
-	URL            string     `json:"url"`
-	Title          string     `json:"title"`
-	Subtitle       *string    `json:"subtitle,omitempty"`
-	BodyHTML       string     `json:"body_html,omitempty"`
-	BodyMarkdown   string     `json:"body_markdown,omitempty"`
-	Excerpt        string     `json:"excerpt,omitempty"`
-	CoverImageURL  *string    `json:"cover_image_url,omitempty"`
-	Status         string     `json:"status"`
-	ReadingMinutes int        `json:"reading_minutes"`
-	Tags           []TagView  `json:"tags" nullable:"false"`
-	Author         AuthorView `json:"author"`
-	Stats          StatsView  `json:"stats"`
-	PublishedAt    *string    `json:"published_at,omitempty"`
-	UpdatedAt      string     `json:"updated_at"`
+	ID             string           `json:"id"`
+	Slug           string           `json:"slug"`
+	URL            string           `json:"url"`
+	Title          string           `json:"title"`
+	Subtitle       *string          `json:"subtitle,omitempty"`
+	BodyHTML       string           `json:"body_html,omitempty"`
+	BodyMarkdown   string           `json:"body_markdown,omitempty"`
+	Excerpt        string           `json:"excerpt,omitempty"`
+	CoverImageURL  *string          `json:"cover_image_url,omitempty"`
+	Status         string           `json:"status"`
+	ReadingMinutes int              `json:"reading_minutes"`
+	Tags           []TagView        `json:"tags" nullable:"false"`
+	Author         AuthorView       `json:"author"`
+	Stats          StatsView        `json:"stats"`
+	Viewer         *ViewerStateView `json:"viewer_state,omitempty"`
+	PublishedAt    *string          `json:"published_at,omitempty"`
+	UpdatedAt      string           `json:"updated_at"`
+}
+
+// ViewerStateView is the signed-in reader's own engagement with a post. Present
+// only on single-post reads by an authenticated viewer.
+type ViewerStateView struct {
+	Reacted    []string `json:"reacted" nullable:"false"`
+	Bookmarked bool     `json:"bookmarked"`
 }
 
 // --- Create ---

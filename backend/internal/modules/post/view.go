@@ -20,6 +20,13 @@ func toFullView(m WithMeta) View {
 	v.BodyHTML = m.Post.BodyHTML
 	// The editor needs the source to edit; the feed card deliberately omits it.
 	v.BodyMarkdown = m.Post.BodyMarkdown
+	if m.Viewer != nil {
+		reacted := m.Viewer.Reacted
+		if reacted == nil {
+			reacted = []string{}
+		}
+		v.Viewer = &ViewerStateView{Reacted: reacted, Bookmarked: m.Viewer.Bookmarked}
+	}
 	return v
 }
 

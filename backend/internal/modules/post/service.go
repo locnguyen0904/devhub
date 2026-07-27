@@ -45,10 +45,18 @@ const (
 )
 
 // WithMeta is a post enriched with its author and tags, ready for a response.
+// Viewer is set only when a signed-in user views a single post.
 type WithMeta struct {
 	Post   Post
 	Author user.Brief
 	Tags   []tag.Tag
+	Viewer *ViewerState
+}
+
+// ViewerState is what the current viewer has done to a post.
+type ViewerState struct {
+	Reacted    []string
+	Bookmarked bool
 }
 
 // postStore is the persistence the service needs, behind an interface so the
@@ -68,6 +76,7 @@ type postStore interface {
 	search(ctx context.Context, query string, limit int32) ([]SearchHit, error)
 	myPosts(ctx context.Context, authorID uuid.UUID, statusFilter string, limit int32) ([]Post, error)
 	addViews(ctx context.Context, ids []uuid.UUID, deltas []int64) error
+	byIDs(ctx context.Context, ids []uuid.UUID) ([]Post, error)
 }
 
 // Service is the post API.
@@ -77,11 +86,15 @@ type Service interface {
 	Publish(ctx context.Context, actorID, postID uuid.UUID) (WithMeta, error)
 	Unpublish(ctx context.Context, actorID, postID uuid.UUID) (WithMeta, error)
 	Delete(ctx context.Context, actorID, postID uuid.UUID) error
-	GetByID(ctx context.Context, postID uuid.UUID) (WithMeta, error)
-	GetBySlug(ctx context.Context, username, slug string) (WithMeta, error)
+	// GetByID and GetBySlug take the viewer's id (uuid.Nil when anonymous) so a
+	// signed-in reader's reactions and bookmark come back with the post.
+	GetByID(ctx context.Context, viewerID, postID uuid.UUID) (WithMeta, error)
+	GetBySlug(ctx context.Context, viewerID uuid.UUID, username, slug string) (WithMeta, error)
 	Feed(ctx context.Context, q FeedQuery) ([]WithMeta, string, error)
 	Search(ctx context.Context, query string, limit int) ([]SearchResult, error)
 	MyPosts(ctx context.Context, actorID uuid.UUID, statusFilter string, limit int) ([]WithMeta, error)
+	// Bookmarks lists the viewer's saved posts as cards, newest saved first.
+	Bookmarks(ctx context.Context, viewerID uuid.UUID) ([]WithMeta, error)
 	// RecordView buffers one view in Redis; the flusher writes it to Postgres.
 	RecordView(ctx context.Context, postID uuid.UUID) error
 	// FlushViews drains the buffered views into Postgres. Called on a timer.
@@ -108,12 +121,13 @@ type service struct {
 	users    authorFinder
 	tags     tagLinker
 	renderer markdownRenderer
+	engage   engagement
 	cache    *cache.Client
 	log      *slog.Logger
 }
 
-func newService(db *database.DB, repo postStore, users authorFinder, tags tagLinker, renderer markdownRenderer, c *cache.Client, log *slog.Logger) *service {
-	return &service{db: db, repo: repo, users: users, tags: tags, renderer: renderer, cache: c, log: log}
+func newService(db *database.DB, repo postStore, users authorFinder, tags tagLinker, renderer markdownRenderer, engage engagement, c *cache.Client, log *slog.Logger) *service {
+	return &service{db: db, repo: repo, users: users, tags: tags, renderer: renderer, engage: engage, cache: c, log: log}
 }
 
 func (s *service) Create(ctx context.Context, actorID uuid.UUID, p CreateParams) (WithMeta, error) {
@@ -228,20 +242,56 @@ func (s *service) Delete(ctx context.Context, actorID, postID uuid.UUID) error {
 	return s.repo.softDelete(ctx, postID, actorID)
 }
 
-func (s *service) GetByID(ctx context.Context, postID uuid.UUID) (WithMeta, error) {
+func (s *service) GetByID(ctx context.Context, viewerID, postID uuid.UUID) (WithMeta, error) {
 	p, err := s.repo.getByID(ctx, postID)
 	if err != nil {
 		return WithMeta{}, err
 	}
-	return s.enrichOne(ctx, p)
+	return s.enrichWithViewer(ctx, viewerID, p)
 }
 
-func (s *service) GetBySlug(ctx context.Context, username, slugValue string) (WithMeta, error) {
+func (s *service) GetBySlug(ctx context.Context, viewerID uuid.UUID, username, slugValue string) (WithMeta, error) {
 	p, err := s.repo.getPublishedBySlug(ctx, username, slugValue)
 	if err != nil {
 		return WithMeta{}, err
 	}
-	return s.enrichOne(ctx, p)
+	return s.enrichWithViewer(ctx, viewerID, p)
+}
+
+// Bookmarks returns the viewer's saved posts as cards. It asks the reaction
+// module for the ids, then loads and enriches them here — reusing the feed's
+// card logic rather than duplicating it.
+func (s *service) Bookmarks(ctx context.Context, viewerID uuid.UUID) ([]WithMeta, error) {
+	ids, err := s.engage.BookmarkedPostIDs(ctx, viewerID)
+	if err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 {
+		return []WithMeta{}, nil
+	}
+	posts, err := s.repo.byIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	return s.enrich(ctx, posts)
+}
+
+// enrichWithViewer adds the signed-in viewer's reactions and bookmark to a
+// single post. An anonymous viewer (uuid.Nil) gets no viewer state.
+func (s *service) enrichWithViewer(ctx context.Context, viewerID uuid.UUID, p Post) (WithMeta, error) {
+	m, err := s.enrichOne(ctx, p)
+	if err != nil {
+		return WithMeta{}, err
+	}
+	if viewerID == uuid.Nil {
+		return m, nil
+	}
+	reacted, bookmarked, err := s.engage.ViewerState(ctx, viewerID, p.ID)
+	if err != nil {
+		return WithMeta{}, err
+	}
+	m.Viewer = &ViewerState{Reacted: reacted, Bookmarked: bookmarked}
+	return m, nil
 }
 
 // Feed serves the latest or hot feed, optionally filtered by tag.

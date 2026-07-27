@@ -25,8 +25,11 @@ help: ## List available targets
 
 # ---- local infrastructure ----
 
-dev: ## Start Postgres, Redis, MinIO and wait until healthy
-	docker compose -f deploy/docker-compose.yml up -d --wait
+dev: ## Start Postgres, Redis, MinIO and create the bucket
+	# --wait only the long-running services: it treats the one-shot minio-init
+	# container's exit as a failure, so run that separately afterwards.
+	docker compose -f deploy/docker-compose.yml up -d --wait postgres redis minio
+	docker compose -f deploy/docker-compose.yml run --rm minio-init
 
 dev-down: ## Stop local infrastructure (keep data)
 	docker compose -f deploy/docker-compose.yml down

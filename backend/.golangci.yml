@@ -38,7 +38,12 @@ linters:
   settings:
     revive:
       rules:
-        - name: exported # godoc on every exported identifier
+        # Keep the godoc-comment enforcement, but disable the stuttering check:
+        # huma names OpenAPI schemas after Go type names, so per-module DTOs must
+        # be prefixed (comment.CommentView) to stay globally unique — exactly the
+        # "stutter" revive dislikes. Global uniqueness wins here.
+        - name: exported
+          arguments: ["disableStutteringCheck"]
         - name: context-as-argument # ctx is the first parameter
         - name: error-strings # lowercase, no trailing punctuation
         - name: early-return

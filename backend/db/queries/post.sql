@@ -107,3 +107,10 @@ WHERE author_id = @author_id AND deleted_at IS NULL
   AND (@status_filter::text = 'all' OR status = @status_filter::text)
 ORDER BY updated_at DESC
 LIMIT @lim;
+
+-- name: GetPostsByIDs :many
+-- Loads posts for a set of ids, preserving the order the ids were given so the
+-- bookmark list stays in most-recently-saved order.
+SELECT * FROM posts
+WHERE id = ANY(@ids::uuid[]) AND deleted_at IS NULL
+ORDER BY array_position(@ids::uuid[], id);

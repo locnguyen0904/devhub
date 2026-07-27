@@ -65,7 +65,7 @@ func (h *Handler) getByID(ctx context.Context, in *IDInput) (*Output, error) {
 	if err != nil {
 		return nil, httpx.ToHuma(err)
 	}
-	m, err := h.svc.GetByID(ctx, id)
+	m, err := h.svc.GetByID(ctx, viewerID(ctx), id)
 	if err != nil {
 		return nil, httpx.ToHuma(err)
 	}
@@ -73,11 +73,34 @@ func (h *Handler) getByID(ctx context.Context, in *IDInput) (*Output, error) {
 }
 
 func (h *Handler) getBySlug(ctx context.Context, in *SlugInput) (*Output, error) {
-	m, err := h.svc.GetBySlug(ctx, in.Username, in.Slug)
+	m, err := h.svc.GetBySlug(ctx, viewerID(ctx), in.Username, in.Slug)
 	if err != nil {
 		return nil, httpx.ToHuma(err)
 	}
 	return &Output{Body: toFullView(m)}, nil
+}
+
+func (h *Handler) bookmarks(ctx context.Context, _ *struct{}) (*CardListOutput, error) {
+	actor, err := auth.RequireIdentity(ctx)
+	if err != nil {
+		return nil, httpx.ToHuma(err)
+	}
+	posts, err := h.svc.Bookmarks(ctx, actor.UserID)
+	if err != nil {
+		return nil, httpx.ToHuma(err)
+	}
+	out := &CardListOutput{}
+	out.Body.Data = toCardViews(posts)
+	return out, nil
+}
+
+// viewerID returns the signed-in user's id, or uuid.Nil when the request is
+// anonymous. Post reads are OptionalAuth, so both cases are normal.
+func viewerID(ctx context.Context) uuid.UUID {
+	if identity, ok := auth.IdentityFromContext(ctx); ok {
+		return identity.UserID
+	}
+	return uuid.Nil
 }
 
 func (h *Handler) publish(ctx context.Context, in *IDInput) (*Output, error) {

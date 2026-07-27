@@ -24,10 +24,11 @@ type Module struct {
 	log     *slog.Logger
 }
 
-// New builds the module from its dependencies. users and tags arrive as the
-// consumer-defined ports, renderer as the markdown port, cache for the hot feed.
-func New(db *database.DB, users authorFinder, tags tagLinker, renderer markdownRenderer, c *cache.Client, log *slog.Logger) *Module {
-	svc := newService(db, newRepository(db), users, tags, renderer, c, log)
+// New builds the module from its dependencies. users, tags and engage arrive as
+// the consumer-defined ports, renderer as the markdown port, cache for the hot
+// feed.
+func New(db *database.DB, users authorFinder, tags tagLinker, renderer markdownRenderer, engage engagement, c *cache.Client, log *slog.Logger) *Module {
+	svc := newService(db, newRepository(db), users, tags, renderer, engage, c, log)
 	return &Module{handler: newHandler(svc), svc: svc, log: log}
 }
 
@@ -93,6 +94,15 @@ func (m *Module) Register(api huma.API) {
 		Tags:        []string{tagName},
 		Security:    bearer,
 	}, m.handler.myPosts)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "getBookmarks",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/me/bookmarks",
+		Summary:     "List the posts the current user saved",
+		Tags:        []string{tagName},
+		Security:    bearer,
+	}, m.handler.bookmarks)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "getPostBySlug",
