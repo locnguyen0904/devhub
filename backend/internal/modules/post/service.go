@@ -3,6 +3,7 @@ package post
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -31,6 +32,8 @@ const (
 	maxFeedLimit     = 50
 	slugRetries      = 5
 
+	// hotCacheKey is a prefix; the limit is appended so pages of different sizes
+	// do not share one cache entry.
 	hotCacheKey = "feed:hot"
 	hotCacheTTL = 5 * time.Minute
 	minQueryLen = 2
@@ -253,7 +256,10 @@ func (s *service) Feed(ctx context.Context, q FeedQuery) ([]WithMeta, string, er
 // most once per TTL. Hot is a single page — the score changes with time, so a
 // stable cursor is not meaningful.
 func (s *service) hotFeed(ctx context.Context, limit int32) ([]WithMeta, string, error) {
-	if cached, ok := s.readHotCache(ctx); ok {
+	// Key by limit: a page cached at limit=20 must not be served to a request
+	// asking for limit=50, which would get fewer rows than it asked for.
+	key := fmt.Sprintf("%s:%d", hotCacheKey, limit)
+	if cached, ok := s.readHotCache(ctx, key); ok {
 		return cached, "", nil
 	}
 
@@ -265,7 +271,7 @@ func (s *service) hotFeed(ctx context.Context, limit int32) ([]WithMeta, string,
 	if err != nil {
 		return nil, "", err
 	}
-	s.writeHotCache(ctx, enriched)
+	s.writeHotCache(ctx, key, enriched)
 	return enriched, "", nil
 }
 
@@ -376,8 +382,8 @@ func (s *service) FlushViews(ctx context.Context) error {
 // readHotCache returns the cached hot feed, or ok=false to recompute. A cache
 // read failure is treated as a miss so the feed degrades to a live query rather
 // than an error.
-func (s *service) readHotCache(ctx context.Context) ([]WithMeta, bool) {
-	raw, found, err := s.cache.Get(ctx, hotCacheKey)
+func (s *service) readHotCache(ctx context.Context, key string) ([]WithMeta, bool) {
+	raw, found, err := s.cache.Get(ctx, key)
 	if err != nil || !found {
 		return nil, false
 	}
@@ -388,12 +394,12 @@ func (s *service) readHotCache(ctx context.Context) ([]WithMeta, bool) {
 	return cached, true
 }
 
-func (s *service) writeHotCache(ctx context.Context, feed []WithMeta) {
+func (s *service) writeHotCache(ctx context.Context, key string, feed []WithMeta) {
 	raw, err := json.Marshal(feed)
 	if err != nil {
 		return
 	}
-	if err := s.cache.Set(ctx, hotCacheKey, string(raw), hotCacheTTL); err != nil {
+	if err := s.cache.Set(ctx, key, string(raw), hotCacheTTL); err != nil {
 		// A cache write failure must not fail the request; the next reader just
 		// recomputes. Log it so a broken Redis is visible.
 		s.log.WarnContext(ctx, "write hot feed cache", slog.String("error", err.Error()))
